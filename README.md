@@ -1,7 +1,7 @@
 # AI-Keeper
 
 <p align="center">
-  <img src="badge.svg" alt="AI-Keeper" width="460" />
+  <img src="badge.svg" alt="AI-Keeper" width="560" />
 </p>
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
