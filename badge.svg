@@ -1,0 +1,39 @@
+<svg width="460" height="140" viewBox="0 0 460 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="460" y2="140">
+<stop offset="0%" stop-color="#0B1220"/>
+<stop offset="100%" stop-color="#111827"/>
+</linearGradient>
+<linearGradient id="primary" x1="0" y1="0" x2="140" y2="140">
+<stop offset="0%" stop-color="#38BDF8"/>
+<stop offset="50%" stop-color="#6366F1"/>
+<stop offset="100%" stop-color="#8B5CF6"/>
+</linearGradient>
+</defs>
+<!-- Main Background -->
+<rect x="4" y="4" width="452" height="132" rx="28" fill="url(#bg)" stroke="#1F2937" stroke-width="2"/>
+<!-- Left Hexagon -->
+<polygon points="78,22 118,45 118,95 78,118 38,95 38,45" fill="url(#primary)" opacity="0.14" stroke="#38BDF8" stroke-width="2"/>
+<!-- Shield -->
+<path d="M78 38L102 48V67C102 84 92 96 78 103C64 96 54 84 54 67V48L78 38Z" fill="url(#primary)"/>
+<!-- AI Neural Network -->
+<circle cx="78" cy="56" r="4.5" fill="white"/>
+<circle cx="66" cy="72" r="4" fill="#C4B5FD"/>
+<circle cx="90" cy="72" r="4" fill="#7DD3FC"/>
+<circle cx="78" cy="86" r="4" fill="#A5F3FC"/>
+<line x1="78" y1="56" x2="66" y2="72" stroke="white" stroke-width="1.8"/>
+<line x1="78" y1="56" x2="90" y2="72" stroke="white" stroke-width="1.8"/>
+<line x1="66" y1="72" x2="78" y2="86" stroke="white" stroke-width="1.8"/>
+<line x1="90" y1="72" x2="78" y2="86" stroke="white" stroke-width="1.8"/>
+<!-- Project Name -->
+<text x="145" y="62" fill="white" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="34" font-weight="700" letter-spacing="0.5">AI-Keeper</text>
+<!-- Subtitle -->
+<text x="146" y="92" fill="#94A3B8" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15" letter-spacing="2">KUBERNETES AI GOVERNANCE PLATFORM</text>
+<!-- Decorative Grid -->
+<circle cx="392" cy="42" r="3" fill="#38BDF8" opacity="0.9"/>
+<circle cx="410" cy="58" r="2.5" fill="#8B5CF6" opacity="0.8"/>
+<circle cx="380" cy="72" r="2.5" fill="#67E8F9" opacity="0.8"/>
+<circle cx="402" cy="88" r="2" fill="#A78BFA" opacity="0.7"/>
+<!-- Bottom Accent -->
+<rect x="145" y="108" width="220" height="3" rx="2" fill="url(#primary)" opacity="0.9"/>
+</svg>
