@@ -5,8 +5,8 @@
 </p>
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/ai-keeper/ai-keeper)](https://goreportcard.com/report/github.com/ai-keeper/ai-keeper)
-[![CI](https://github.com/ai-keeper/ai-keeper/actions/workflows/unit.yml/badge.svg)](https://github.com/ai-keeper/ai-keeper/actions/workflows/unit.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rendq/AI-Keeper)](https://goreportcard.com/report/github.com/rendq/AI-Keeper)
+[![CI](https://github.com/rendq/AI-Keeper/actions/workflows/unit.yml/badge.svg)](https://github.com/rendq/AI-Keeper/actions/workflows/unit.yml)
 
 **AI-Keeper** is a Kubernetes-native, declarative AI governance platform that keeps your enterprise AI agents, skills, tools, and models safe, compliant, and cost-controlled.
 

@@ -1,0 +1,62 @@
+---
+# Container image build placeholder. Until each component lands its real
+# Dockerfile we just `go build ./cmd/<bin>` per binary so we catch
+# compilation regressions across the whole cmd/ matrix.
+name: images
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "cmd/**"
+      - "go.mod"
+      - "go.sum"
+      - "proto/**"
+      - "internal/**"
+      - "controllers/**"
+      - "dataplane/**"
+      - "api/**"
+      - ".github/workflows/images.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        cmd:
+          - manager
+          - aip-gateway
+          - aip-pdp
+          - aip-pep
+          - aip-router
+          - aip-audit
+          - aipctl
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - name: Build cmd/${{ matrix.cmd }}
+        run: |
+          if find "cmd/${{ matrix.cmd }}" -maxdepth 1 -name '*.go' | grep -q .; then
+            go build -o /tmp/${{ matrix.cmd }} ./cmd/${{ matrix.cmd }}
+            echo "  → built: $(ls -lh /tmp/${{ matrix.cmd }})"
+          else
+            echo "  (cmd/${{ matrix.cmd }} has no Go sources yet — skipping)"
+          fi

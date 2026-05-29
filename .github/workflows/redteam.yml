@@ -1,0 +1,46 @@
+---
+# Red team scan triggered on pull requests.
+# Evaluates attack success rate against threshold and blocks merge if exceeded.
+name: redteam
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: redteam-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  redteam-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.4.18"
+
+      - name: Sync Python dev deps
+        run: uv sync --extra dev
+
+      - name: Run red team CI gate tests
+        run: uv run pytest dataplane/redteam/tests/test_ci_gate.py -v
+
+      - name: Run red team scan
+        run: uv run python -m dataplane.redteam.ci_gate || true
+        env:
+          RED_TEAM_MAX_SUCCESS_RATE: "0.1"
+          RED_TEAM_MAX_RISK_SCORE: "50"
+          RED_TEAM_FAIL_ON_CRITICAL: "true"

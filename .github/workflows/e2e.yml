@@ -1,0 +1,93 @@
+---
+# End-to-end test workflow against a real kind cluster.
+#
+# Currently `make e2e-up` is a placeholder until task 20.1 lands. We still
+# bring up kind here so the workflow path is exercised, but skip the e2e
+# invocation when the target is still a placeholder. Once 20.1 is merged
+# the `if: env.E2E_READY == 'true'` guard can be flipped.
+name: e2e
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "deploy/**"
+      - "hack/kind/**"
+      - "test/e2e/**"
+      - ".github/workflows/e2e.yml"
+      - "Makefile"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Flip to "true" once `make e2e-up` is wired up by task 20.1.
+  E2E_READY: "false"
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.4.18"
+
+      - name: Bootstrap k8s tooling (helm + kubeconform)
+        run: make bootstrap-k8s
+
+      - name: Create kind cluster
+        # Pinned major to v1; kind itself is pinned via the action input.
+        uses: helm/kind-action@v1
+        with:
+          version: v0.24.0
+          cluster_name: aip-dev
+          config: hack/kind/kind-cluster.yaml
+          wait: 120s
+
+      - name: Show cluster info
+        run: |
+          kubectl cluster-info
+          kubectl get nodes -o wide
+          kubectl get ns
+
+      - name: Install ingress-nginx
+        run: bash hack/kind/install-ingress.sh
+
+      - name: helm template smoke test
+        # Even before the full e2e pipeline lands, render the umbrella chart
+        # against the live cluster and apply with --dry-run to confirm the
+        # API server accepts everything we generate.
+        run: |
+          make helm-template
+          kubectl apply --dry-run=client -f /tmp/aip-rendered.yaml
+
+      - name: e2e bring-up
+        if: env.E2E_READY == 'true'
+        run: make e2e-up
+
+      - name: Tear down
+        if: always()
+        run: |
+          kind delete cluster --name aip-dev || true
