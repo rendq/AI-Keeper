@@ -70,8 +70,6 @@ Thumbs.db
 *.key
 
 # Generated (kept out of VCS — `make proto` regenerates them).
-proto/aip/**/*.pb.go
-proto/aip/**/*_grpc.pb.go
 proto/ts/**
 dataplane/**/aip_runtime/proto/**
 !proto/aip/v1/*.proto
