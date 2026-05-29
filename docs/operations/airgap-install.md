@@ -2,7 +2,7 @@
 
 ## Overview
 
-AIP supports fully air-gapped deployment where no external network access is available. All container images, Helm charts, and skill packs are pre-bundled.
+AI-Keeper supports fully air-gapped deployment where no external network access is available. All container images, Helm charts, and skill packs are pre-bundled.
 
 ## Prerequisites
 
@@ -16,11 +16,11 @@ AIP supports fully air-gapped deployment where no external network access is ava
 # Generate offline bundle with all images + charts
 aikctl airgap pack \
   --version 2.0.0 \
-  --output /tmp/aip-airgap-bundle.tar.gz \
+  --output /tmp/aik-airgap-bundle.tar.gz \
   --include-marketplace-packs "healthcare,finance"
 
 # Bundle contents:
-# - All AIP container images (amd64 + arm64)
+# - All AI-Keeper container images (amd64 + arm64)
 # - Helm chart archive
 # - Selected marketplace skill packs
 # - SHA256 checksums
@@ -28,14 +28,14 @@ aikctl airgap pack \
 
 ## Step 2: Transfer Bundle
 
-Transfer `aip-airgap-bundle.tar.gz` to the air-gapped environment via approved media (USB, DVD, SFTP jump host).
+Transfer `aik-airgap-bundle.tar.gz` to the air-gapped environment via approved media (USB, DVD, SFTP jump host).
 
 ## Step 3: Load into Internal Registry
 
 ```bash
 # On air-gapped machine with registry access
 aikctl airgap load \
-  --bundle /path/to/aip-airgap-bundle.tar.gz \
+  --bundle /path/to/aik-airgap-bundle.tar.gz \
   --registry registry.internal.example.com:5000
 
 # Verify images loaded
@@ -63,7 +63,7 @@ marketplace:
 ```
 
 ```bash
-helm install aip deploy/helm/ai-keeper \
+helm install ai-keeper deploy/helm/ai-keeper \
   -f deploy/helm/ai-keeper/values-p2.yaml \
   -f values-airgap.yaml \
   -n aik-system --create-namespace
@@ -86,7 +86,7 @@ aikctl airgap pack --version 2.1.0 --output update-bundle.tar.gz --delta-from 2.
 aikctl airgap load --bundle update-bundle.tar.gz --registry registry.internal.example.com:5000
 
 # Upgrade
-helm upgrade aip deploy/helm/ai-keeper \
+helm upgrade ai-keeper deploy/helm/ai-keeper \
   -f deploy/helm/ai-keeper/values-p2.yaml \
   -f values-airgap.yaml \
   --set global.imageTag=2.1.0

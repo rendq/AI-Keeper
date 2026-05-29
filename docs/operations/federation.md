@@ -2,7 +2,7 @@
 
 ## Overview
 
-Federation enables multiple AIP clusters to share resources (marketplace listings, policies) while maintaining independent operation. Two modes are supported:
+Federation enables multiple AI-Keeper clusters to share resources (marketplace listings, policies) while maintaining independent operation. Two modes are supported:
 
 - **Mesh**: All clusters peer directly (best for ≤5 clusters)
 - **Hub-spoke**: Central hub coordinates, spokes connect only to hub (best for large deployments)
@@ -53,7 +53,7 @@ kubectl create secret generic cluster-b-ca \
 ### 4. Deploy
 
 ```bash
-helm upgrade aip deploy/helm/ai-keeper \
+helm upgrade ai-keeper deploy/helm/ai-keeper \
   -f deploy/helm/ai-keeper/values-p2.yaml \
   -f values-federation.yaml \
   -n aik-system
@@ -137,5 +137,5 @@ aikctl federation conflicts resolve <id> --keep local|remote
 | Issue | Diagnosis | Resolution |
 |-------|-----------|------------|
 | Peer unreachable | `aikctl federation status` shows timeout | Check firewall rules for port 8443 |
-| Sync lag growing | Check `aip_federation_sync_lag_seconds` metric | Increase `sync.intervalSeconds` or check network |
+| Sync lag growing | Check `aik_federation_sync_lag_seconds` metric | Increase `sync.intervalSeconds` or check network |
 | Policy conflicts | `aikctl federation conflicts list` | Resolve manually or switch to last-writer-wins |

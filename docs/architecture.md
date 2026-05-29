@@ -1,6 +1,6 @@
-# AIP 架构概览
+# AI-Keeper 架构概览
 
-AI Platform (AIP) 采用 Kubernetes-native 的声明式架构，通过 CRD + Controller 模式管理 AI Agent 的全生命周期。
+AI-Keeper 采用 Kubernetes-native 的声明式架构，通过 CRD + Controller 模式管理 AI Agent 的全生命周期。
 
 ## 核心架构
 
@@ -43,7 +43,7 @@ AI Platform (AIP) 采用 Kubernetes-native 的声明式架构，通过 CRD + Con
 
 ## CRD 资源模型
 
-AIP 通过以下 CRD 实现声明式管理：
+AI-Keeper 通过以下 CRD 实现声明式管理：
 
 - `Tenant` — 多租户隔离边界
 - `ServiceAccount` — 服务身份与凭证

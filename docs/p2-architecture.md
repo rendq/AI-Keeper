@@ -1,12 +1,12 @@
-# AIP Phase 2 Architecture
+# AI-Keeper Phase 2 Architecture
 
 ## Overview
 
-P2 extends the AIP platform with enterprise-grade capabilities: a Skill Marketplace, multi-cluster Federation, Cedar-based fine-grained authorization, air-gapped deployment support, and automated compliance reporting.
+P2 extends the AI-Keeper platform with enterprise-grade capabilities: a Skill Marketplace, multi-cluster Federation, Cedar-based fine-grained authorization, air-gapped deployment support, and automated compliance reporting.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      AIP Control Plane                       │
+│                   AI-Keeper Control Plane                    │
 ├──────────┬──────────┬───────────┬───────────┬──────────────┤
 │ Manager  │ Gateway  │ PDP/Cedar │  Audit    │ Compliance   │
 │          │          │  Engine   │  Sink     │ Report Engine│

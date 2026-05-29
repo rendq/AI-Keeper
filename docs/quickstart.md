@@ -1,6 +1,6 @@
-# AIP Quickstart: Legal Copilot 飞书 Demo
+# AI-Keeper Quickstart: Legal Copilot 飞书 Demo
 
-> 30 分钟从零开始，在本地 kind 集群上部署 AI Platform 并运行 Legal Copilot 飞书机器人示例。
+> 30 分钟从零开始，在本地 kind 集群上部署 AI-Keeper 并运行 Legal Copilot 飞书机器人示例。
 
 ## 前置条件
 
@@ -55,10 +55,10 @@ make install-crds
 
 ## 步骤 4：部署存储层
 
-存储层（PostgreSQL、Redis、NATS、ClickHouse、MinIO）作为 AIP 的依赖，优先部署：
+存储层（PostgreSQL、Redis、NATS、ClickHouse、MinIO）作为 AI-Keeper 的依赖，优先部署：
 
 ```bash
-helm upgrade --install aip deploy/helm/ai-keeper \
+helm upgrade --install ai-keeper deploy/helm/ai-keeper \
   --namespace aik-system --create-namespace \
   --set manager.enabled=false \
   --set gateway.enabled=false \
@@ -77,12 +77,12 @@ helm upgrade --install aip deploy/helm/ai-keeper \
 kubectl -n aik-system wait --for=condition=Ready pod -l app.kubernetes.io/component=storage --timeout=120s
 ```
 
-## 步骤 5：部署 AIP 平台
+## 步骤 5：部署 AI-Keeper 平台
 
 完整安装所有组件：
 
 ```bash
-helm upgrade --install aip deploy/helm/ai-keeper \
+helm upgrade --install ai-keeper deploy/helm/ai-keeper \
   --namespace aik-system --create-namespace \
   --wait --timeout 5m
 ```
@@ -136,7 +136,7 @@ kubectl -n aik-system create secret generic feishu-credentials \
    - 本地开发可用 `kubectl port-forward` 配合内网穿透工具
 
 ```bash
-kubectl -n aik-system port-forward svc/aip-channels 8080:8080
+kubectl -n aik-system port-forward svc/aik-channels 8080:8080
 ```
 
 ## 步骤 8：发送测试消息
@@ -155,7 +155,7 @@ kubectl -n aik-system port-forward svc/aip-channels 8080:8080
 
 ```bash
 kubectl -n aik-system exec -it deploy/aik-audit-storage-clickhouse -- \
-  clickhouse-client --query "SELECT * FROM aip_audit.events ORDER BY timestamp DESC LIMIT 5"
+  clickhouse-client --query "SELECT * FROM aik_audit.events ORDER BY timestamp DESC LIMIT 5"
 ```
 
 你应该能看到包含以下字段的审计记录：
@@ -169,7 +169,7 @@ kubectl -n aik-system exec -it deploy/aik-audit-storage-clickhouse -- \
 
 ```bash
 # 删除 Helm release
-helm uninstall aip -n aik-system
+helm uninstall ai-keeper -n aik-system
 
 # 删除 kind 集群
 make kind-down

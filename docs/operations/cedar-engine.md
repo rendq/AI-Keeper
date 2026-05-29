@@ -67,7 +67,7 @@ cedar:
   policyStore:
     backend: git
     git:
-      repo: "https://git.internal/aip-policies.git"
+      repo: "https://git.internal/aik-policies.git"
       branch: "main"
       path: "cedar/"
 ```
@@ -109,6 +109,6 @@ aikctl cedar check \
 ## Monitoring
 
 Key metrics (Prometheus):
-- `aip_cedar_decision_duration_seconds` — evaluation latency
-- `aip_cedar_decisions_total{result="allow|deny"}` — decision counts
-- `aip_cedar_policy_load_errors_total` — policy reload failures
+- `aik_cedar_decision_duration_seconds` — evaluation latency
+- `aik_cedar_decisions_total{result="allow|deny"}` — decision counts
+- `aik_cedar_policy_load_errors_total` — policy reload failures

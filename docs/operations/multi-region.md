@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- AIP P2 deployed in each region
+- AI-Keeper P2 deployed in each region
 - Network connectivity between clusters (port 8443 for federation)
 - TLS certificates for inter-cluster communication
 
@@ -11,7 +11,7 @@
 ```
 Region A (us-east-1)          Region B (eu-west-1)
 ┌──────────────────┐          ┌──────────────────┐
-│  AIP Cluster     │◄────────►│  AIP Cluster     │
+│ AI-Keeper Cluster│◄────────►│ AI-Keeper Cluster│
 │  + Federation    │  TLS/gRPC│  + Federation    │
 │  + Cedar (local) │          │  + Cedar (local) │
 └──────────────────┘          └──────────────────┘
@@ -77,11 +77,11 @@ aikctl federation status
 
 ```bash
 # Check federation metrics
-kubectl port-forward svc/aip-federation 9090:9090 -n aik-system
-curl http://localhost:9090/metrics | grep aip_federation_
+kubectl port-forward svc/aik-federation 9090:9090 -n aik-system
+curl http://localhost:9090/metrics | grep aik_federation_
 ```
 
 Key metrics:
-- `aip_federation_sync_lag_seconds` — replication delay per peer
-- `aip_federation_peer_status` — 1=connected, 0=disconnected
-- `aip_federation_conflicts_total` — policy merge conflicts
+- `aik_federation_sync_lag_seconds` — replication delay per peer
+- `aik_federation_peer_status` — 1=connected, 0=disconnected
+- `aik_federation_conflicts_total` — policy merge conflicts
