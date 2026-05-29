@@ -1,0 +1,80 @@
+{
+  "title": "AIP Helm Chart Values",
+  "type": "object",
+  "properties": {
+    "global": {
+      "type": "object",
+      "properties": {
+        "imageRegistry": { "type": "string" },
+        "imagePullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] },
+        "imageTag": { "type": "string" },
+        "logLevel": { "type": "string", "enum": ["debug", "info", "warn", "error"] },
+        "namespace": { "type": "string" }
+      }
+    },
+    "tenant": {
+      "type": "object",
+      "properties": {
+        "complianceProfile": { "type": "string", "enum": ["standard", "gdpr", "hipaa", "soc2", "dengbao3"] },
+        "modelAllowlist": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "marketplace": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "replicas": { "type": "integer", "minimum": 1 },
+        "image": { "type": "object", "properties": { "repository": { "type": "string" }, "tag": { "type": "string" } } },
+        "service": { "type": "object", "properties": { "type": { "type": "string" }, "port": { "type": "integer" } } },
+        "registry": { "type": "object", "properties": { "endpoint": { "type": "string" }, "insecure": { "type": "boolean" } } },
+        "review": { "type": "object", "properties": { "autoApprove": { "type": "boolean" }, "requiredApprovals": { "type": "integer", "minimum": 1 } } },
+        "resources": { "type": "object" }
+      }
+    },
+    "federation": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "replicas": { "type": "integer", "minimum": 1 },
+        "mode": { "type": "string", "enum": ["mesh", "hub-spoke"] },
+        "cluster": { "type": "object", "properties": { "name": { "type": "string" }, "region": { "type": "string" } } },
+        "peers": { "type": "array", "items": { "type": "object", "properties": { "name": { "type": "string" }, "endpoint": { "type": "string" }, "caSecretRef": { "type": "string" } }, "required": ["name", "endpoint"] } },
+        "sync": { "type": "object", "properties": { "intervalSeconds": { "type": "integer", "minimum": 5 }, "resources": { "type": "array", "items": { "type": "string" } } } },
+        "tls": { "type": "object", "properties": { "enabled": { "type": "boolean" }, "certSecretRef": { "type": "string" } } },
+        "resources": { "type": "object" }
+      }
+    },
+    "cedar": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "engine": { "type": "object", "properties": { "image": { "type": "object", "properties": { "repository": { "type": "string" }, "tag": { "type": "string" } } }, "replicas": { "type": "integer", "minimum": 1 } } },
+        "policyStore": { "type": "object", "properties": { "backend": { "type": "string", "enum": ["configmap", "s3", "git"] }, "s3": { "type": "object" }, "git": { "type": "object" } } },
+        "resources": { "type": "object" }
+      }
+    },
+    "airgap": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "mirrorRegistry": { "type": "string" },
+        "imageListConfigMap": { "type": "string" },
+        "helmRepo": { "type": "object", "properties": { "type": { "type": "string", "enum": ["chartmuseum", "harbor"] }, "url": { "type": "string" } } },
+        "skipConnectivityCheck": { "type": "boolean" },
+        "ntpServer": { "type": "string" }
+      }
+    },
+    "compliance-report": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "replicas": { "type": "integer", "minimum": 1 },
+        "image": { "type": "object", "properties": { "repository": { "type": "string" }, "tag": { "type": "string" } } },
+        "schedule": { "type": "object", "properties": { "cron": { "type": "string" } } },
+        "profiles": { "type": "array", "items": { "type": "string" } },
+        "export": { "type": "object", "properties": { "formats": { "type": "array", "items": { "type": "string" } }, "storage": { "type": "object" } } },
+        "resources": { "type": "object" }
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+apiVersion: core.ai-keeper.io/v1alpha1
+kind: Tenant
+metadata:
+  name: finance-dept
+spec:
+  displayName: 金融事业部
+  complianceProfile:
+    standards:
+      - DJCP-L3
+      - PCIDSS
+    dataResidency:
+      - cn-shanghai
+      - cn-beijing
+  modelAllowlist:
+    - model://tongyi-qwen
+    - model://baichuan-private
+  deployment:
+    regions:
+      - cn-shanghai
+      - cn-beijing
+  admin:
+    email: finance-admin@example.com

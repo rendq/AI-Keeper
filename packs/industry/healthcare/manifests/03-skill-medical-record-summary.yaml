@@ -1,0 +1,105 @@
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Skill
+metadata:
+  name: medical-record-summary
+  namespace: healthcare-dept
+spec:
+  version: "1.0.0"
+  stability: stable
+  interface:
+    input:
+      schema:
+        type: object
+        required:
+          - patientId
+          - recordIds
+        properties:
+          patientId:
+            type: string
+            description: 患者唯一标识 (MRN)
+          recordIds:
+            type: array
+            items:
+              type: string
+            description: 待摘要的病历记录 ID 列表
+          summaryType:
+            type: string
+            enum: [discharge, progress, referral, comprehensive]
+            description: 摘要类型（出院/病程/转诊/综合）
+          timeRange:
+            type: object
+            properties:
+              from:
+                type: string
+                format: date
+              to:
+                type: string
+                format: date
+    output:
+      schema:
+        type: object
+        required:
+          - summary
+          - diagnoses
+        properties:
+          summary:
+            type: string
+            description: 结构化病历摘要
+          diagnoses:
+            type: array
+            items:
+              type: object
+              properties:
+                code:
+                  type: string
+                  description: ICD-10 诊断代码
+                description:
+                  type: string
+                status:
+                  type: string
+                  enum: [active, resolved, chronic]
+          medications:
+            type: array
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                dosage:
+                  type: string
+                frequency:
+                  type: string
+          keyFindings:
+            type: array
+            items:
+              type: string
+  implementation:
+    runtime: python
+    image: registry.example.com/aip/skills/medical-record-summary:1.0.0
+    entrypoint: medical_record_summary:summarize
+    requires:
+      models:
+        - alias: reasoner
+          versionConstraint: ">=2024.01"
+      dataSources:
+        - ref: data://healthcare-dept/medical-guidelines-kb
+  governance:
+    classification: restricted
+    pii:
+      onInput: detect_and_mask
+      onOutput: detect_and_mask
+      patternsRef: ref://patterns/phi-identifiers
+  cost:
+    budget: ref://budget/healthcare-dept-monthly
+  slo:
+    p95LatencyMs: 8000
+    successRate: 0.97
+  evaluation:
+    evalSet: ref://eval/medical-terminology-benchmark
+    schedule: "0 2 * * 1"
+    gates:
+      promoteToStable:
+        minScore: 0.85
+        metrics:
+          - accuracy
+          - groundedness

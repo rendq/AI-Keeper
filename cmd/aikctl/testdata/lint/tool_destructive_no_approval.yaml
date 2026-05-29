@@ -1,0 +1,15 @@
+# Tool with sideEffects=destructive but no requiresApproval.
+# Violation: tool/destructive-needs-approval
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Tool
+metadata:
+  name: database-wiper
+spec:
+  protocol: openapi
+  endpoint: "http://db-admin:9090/wipe"
+  schema:
+    input: '{"type": "object"}'
+    output: '{"type": "object"}'
+  governance:
+    sideEffects: destructive
+    requiresApproval: false

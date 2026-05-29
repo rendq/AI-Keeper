@@ -1,0 +1,86 @@
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Skill
+metadata:
+  name: compliance-review
+  namespace: finance-dept
+spec:
+  version: "1.0.0"
+  stability: stable
+  interface:
+    input:
+      schema:
+        type: object
+        required:
+          - documentId
+          - reviewType
+        properties:
+          documentId:
+            type: string
+            description: 待审查文档 ID
+          reviewType:
+            type: string
+            enum: [regulatory, internal, audit]
+            description: 审查类型（监管/内部/审计）
+          regulations:
+            type: array
+            items:
+              type: string
+            description: 适用法规列表
+    output:
+      schema:
+        type: object
+        required:
+          - findings
+          - riskLevel
+        properties:
+          findings:
+            type: array
+            items:
+              type: object
+              properties:
+                clause:
+                  type: string
+                violation:
+                  type: string
+                severity:
+                  type: string
+                  enum: [high, medium, low]
+                regulation:
+                  type: string
+          riskLevel:
+            type: string
+            enum: [critical, high, medium, low]
+          recommendations:
+            type: array
+            items:
+              type: string
+  implementation:
+    runtime: python
+    image: registry.example.com/aip/skills/compliance-review:1.0.0
+    entrypoint: compliance_review:review
+    requires:
+      models:
+        - alias: reasoner
+          versionConstraint: ">=2024.01"
+      dataSources:
+        - ref: data://finance-dept/finance-regulations-kb
+  governance:
+    classification: confidential
+    pii:
+      onInput: detect_and_mask
+      onOutput: detect_and_block
+      patternsRef: ref://patterns/finance-pii
+  cost:
+    budget: ref://budget/finance-dept-monthly
+  slo:
+    p95LatencyMs: 10000
+    successRate: 0.95
+  evaluation:
+    evalSet: ref://eval/compliance-review-v1
+    schedule: "0 3 * * 1"
+    gates:
+      promoteToStable:
+        minScore: 0.85
+        metrics:
+          - accuracy
+          - groundedness

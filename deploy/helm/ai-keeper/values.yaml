@@ -1,0 +1,186 @@
+# AIP umbrella chart values.
+#
+# Sensible defaults for LOCAL DEVELOPMENT on a kind cluster.
+# Production overrides should be placed in a separate values-prod.yaml.
+---
+global:
+  # Container image registry. Local kind dev uses the registry brought up by
+  # `hack/kind/kind-with-registry.sh`. CI / prod overrides this.
+  imageRegistry: localhost:5001
+  imagePullPolicy: IfNotPresent
+  # Default tag for AIP-built images (manager / gateway / pdp / ...).
+  imageTag: "0.0.1"
+  # Cluster-wide log level. Components may override per-sub-chart.
+  logLevel: info
+  # Namespace where AIP CRDs and core controllers run.
+  namespace: aik-system
+
+# Tenant-scoped defaults applied when the umbrella chart bootstraps a Tenant.
+tenant:
+  # complianceProfile values: standard | gdpr | hipaa | soc2 | dengbao3
+  complianceProfile: standard
+  modelAllowlist: []
+
+# ---------- Sub-chart toggles ----------
+# For local development, all core components are enabled by default.
+# Disable individual components by setting <name>.enabled: false.
+
+manager:
+  enabled: true
+  replicas: 1
+  image:
+    repository: aip/manager
+    tag: ""  # falls back to global.imageTag
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+gateway:
+  enabled: true
+  replicas: 1
+  image:
+    repository: aip/gateway
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+pdp:
+  enabled: true
+  replicas: 1
+  image:
+    repository: aip/pdp
+    tag: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+pep:
+  enabled: true
+  replicas: 1
+  image:
+    repository: aip/pep
+    tag: ""
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+audit:
+  enabled: true
+  replicas: 1
+  image:
+    repository: aip/audit
+    tag: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+router:
+  enabled: true
+  replicas: 1
+  image:
+    repository: aip/router
+    tag: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+runtime:
+  enabled: true
+  replicas: 1
+  image:
+    repository: aip/runtime
+    tag: ""
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+channels:
+  enabled: true
+  replicas: 1
+  image:
+    repository: aip/channels
+    tag: ""
+  feishu:
+    enabled: true
+    appId: ""
+    appSecret: ""
+    verificationToken: ""
+    encryptKey: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+storage:
+  enabled: true
+  postgresql:
+    enabled: true
+    auth:
+      username: aip
+      password: aik-dev-pass
+      database: aip
+    primary:
+      persistence:
+        size: 1Gi
+  redis:
+    enabled: true
+    auth:
+      password: aip-redis-dev
+    master:
+      persistence:
+        size: 512Mi
+  nats:
+    enabled: true
+
+# Hyphenated keys must be quoted in YAML.
+"audit-storage":
+  enabled: true
+  clickhouse:
+    enabled: true
+    auth:
+      username: default
+      password: aip-ck-dev
+    persistence:
+      size: 2Gi
+  minio:
+    enabled: true
+    auth:
+      rootUser: minioadmin
+      rootPassword: minioadmin
+    persistence:
+      size: 2Gi

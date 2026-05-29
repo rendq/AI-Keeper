@@ -1,0 +1,21 @@
+Thanks for installing the AIP umbrella chart (version {{ .Chart.Version }}, app {{ .Chart.AppVersion }}).
+
+This chart is a P0 scaffold: every sub-chart toggle defaults to disabled until
+its owning component task lands. Inspect what would render with:
+
+  helm template {{ .Release.Name }} {{ .Chart.Name }} \
+    --namespace {{ .Release.Namespace }} \
+    --values values.yaml
+
+Enable a sub-chart by flipping its top-level toggle, e.g.:
+
+  helm upgrade --install {{ .Release.Name }} aip --set manager.enabled=true
+
+Useful next steps:
+  - Bring up a local kind dev cluster: `make kind-up`
+  - Run the umbrella `helm lint` + `helm template` + kubeconform: `make helm-validate`
+  - Run the full local CI rehearsal: `make ci-local`
+
+See deploy/helm/aip/README.md (created in later tasks) for component-specific
+overrides. Until then, the source of truth for sub-chart values is each
+chart's own values.yaml under deploy/helm/aip/charts/<name>/values.yaml.

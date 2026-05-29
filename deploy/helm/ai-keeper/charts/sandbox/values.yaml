@@ -1,0 +1,41 @@
+# Default values for the sandbox sub-chart.
+# Each runtime class can be independently enabled/disabled.
+---
+# gVisor runtime class (handler: runsc)
+gvisor:
+  enabled: true
+  # Pod overhead when using gVisor
+  overhead:
+    podFixed:
+      memory: "64Mi"
+      cpu: "50m"
+  # Node scheduling constraints
+  scheduling:
+    nodeSelector:
+      sandbox.ai-keeper.io/gvisor: "true"
+
+# Firecracker runtime class (handler: firecracker)
+firecracker:
+  enabled: false
+  # Pod overhead when using Firecracker microVMs
+  overhead:
+    podFixed:
+      memory: "128Mi"
+      cpu: "100m"
+  # Node scheduling constraints
+  scheduling:
+    nodeSelector:
+      sandbox.ai-keeper.io/firecracker: "true"
+
+# Kata Containers runtime class (handler: kata)
+kata:
+  enabled: false
+  # Pod overhead when using Kata containers
+  overhead:
+    podFixed:
+      memory: "128Mi"
+      cpu: "100m"
+  # Node scheduling constraints
+  scheduling:
+    nodeSelector:
+      sandbox.ai-keeper.io/kata: "true"

@@ -1,0 +1,107 @@
+// Copyright 2026 The AIP Authors.
+//
+// Model Router gRPC contract.
+// Implements design.md §4.2 / §10.2 and Requirement B8.
+//
+// Resolves a logical alias (`reasoner` / `embedder` / `vision`) to a concrete
+// ModelEndpoint at request time, applying CEL rules + weighted routing +
+// semantic cache + per-endpoint fallback chain.
+syntax = "proto3";
+
+package aip.v1;
+
+import "aip/v1/pdp.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+
+// Capability the caller wants. Same vocabulary as Skill.requires.models[].
+enum ModelCapability {
+  MODEL_CAPABILITY_UNSPECIFIED = 0;
+  MODEL_CAPABILITY_REASONER = 1;
+  MODEL_CAPABILITY_EMBEDDER = 2;
+  MODEL_CAPABILITY_VISION = 3;
+  MODEL_CAPABILITY_SUMMARIZER = 4;
+  MODEL_CAPABILITY_TRANSLATOR = 5;
+  MODEL_CAPABILITY_GUARDRAIL = 6;
+}
+
+// Resolved endpoint (B8.1, B8.2).
+message ResolvedEndpoint {
+  // FQN of the ModelEndpoint CR (`<namespace>/<name>` or `<name>` for cluster
+  // scope).
+  string endpoint_ref = 1;
+  string provider = 2;
+  string region = 3;
+  // Compliance tags propagated to AuditEvent.compliance (B8 / D-series).
+  repeated string compliance_tags = 4;
+  // Pricing snapshot used by Cost Tracker (per million tokens).
+  string input_usd_per_mtok = 5;
+  string output_usd_per_mtok = 6;
+  string cached_input_usd_per_mtok = 7;
+}
+
+// A single request-time hint the router can use to evaluate CEL rules.
+message RoutingContext {
+  string tenant_id = 1;
+  Classification classification = 2;
+  // CEL inputs: user.country / costSensitive / latencySensitive / region …
+  google.protobuf.Struct attributes = 3;
+}
+
+message RouteRequest {
+  ModelCapability capability = 1;
+  // Logical alias from Skill.requires.models[].alias.
+  string alias = 2;
+  // ModelRouter CR FQN to evaluate (`<namespace>/<name>`).
+  string router_ref = 3;
+  RoutingContext context = 4;
+  // Optional cache key precomputed by the caller (semantic cache; B8.4).
+  string cache_key = 5;
+  string trace_id = 10;
+  string invocation_id = 11;
+}
+
+message RouteResponse {
+  ResolvedEndpoint endpoint = 1;
+  // Whether the response will come from semantic cache.
+  bool cache_hit = 2;
+  double cache_similarity = 3;
+  // Fallback endpoints in the order the caller should retry through (B8.5).
+  repeated ResolvedEndpoint fallback = 4;
+}
+
+// Streaming chat completion proxied through the router (B8.6 — emits cache /
+// endpoint / region info to AuditEvent).
+message ChatRequest {
+  RouteRequest route = 1;
+  // Free-form provider-shaped messages payload (compatible with OpenAI
+  // chat/completions; design.md §3 ModelClient interface).
+  google.protobuf.Struct payload = 2;
+  bool stream = 3;
+  google.protobuf.Duration timeout = 4;
+}
+
+// One streamed chunk back to the caller.
+message ChatChunk {
+  // Raw provider chunk (delta + finish_reason + usage…).
+  google.protobuf.Struct delta = 1;
+  // Set on the last chunk only.
+  ChatUsage usage = 2;
+  bool done = 3;
+}
+
+message ChatUsage {
+  int32 tokens_in = 1;
+  int32 tokens_out = 2;
+  int32 tokens_cached = 3;
+  string usd = 4;
+}
+
+service ModelRouterService {
+  // Resolve a logical alias to a concrete endpoint (B8.1 / B8.2).
+  rpc Route(RouteRequest) returns (RouteResponse);
+
+  // Streamed chat completion. Wraps endpoint client + semantic cache +
+  // fallback retries (B8.4 / B8.5 / B8.6).
+  rpc CompleteChat(ChatRequest) returns (stream ChatChunk);
+}

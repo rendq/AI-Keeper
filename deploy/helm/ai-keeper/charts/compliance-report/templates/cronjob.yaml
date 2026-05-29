@@ -1,0 +1,90 @@
+{{- if .Values.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "compliance-report.fullname" . }}
+  labels:
+    {{- include "compliance-report.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "compliance-report.selectorLabels" . | nindent 8 }}
+    spec:
+      backoffLimit: {{ .Values.job.backoffLimit }}
+      activeDeadlineSeconds: {{ .Values.job.activeDeadlineSeconds }}
+      ttlSecondsAfterFinished: {{ .Values.job.ttlSecondsAfterFinished }}
+      template:
+        metadata:
+          labels:
+            {{- include "compliance-report.selectorLabels" . | nindent 12 }}
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: {{ include "compliance-report.serviceAccountName" . }}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: report-generator
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              args:
+                - generate
+                - --all-enabled
+              env:
+                # Report types
+                - name: REPORT_GDPR_ENABLED
+                  value: {{ .Values.reports.gdpr | quote }}
+                - name: REPORT_SOC2_ENABLED
+                  value: {{ .Values.reports.soc2 | quote }}
+                - name: REPORT_HIPAA_ENABLED
+                  value: {{ .Values.reports.hipaa | quote }}
+                - name: REPORT_DJSANJI_ENABLED
+                  value: {{ .Values.reports.djSanji | quote }}
+                # S3 destination
+                - name: S3_BUCKET
+                  value: {{ .Values.s3.bucket | quote }}
+                - name: S3_PREFIX
+                  value: {{ .Values.s3.prefix | quote }}
+                - name: S3_REGION
+                  value: {{ .Values.s3.region | quote }}
+                # Notification
+                - name: NOTIFY_CHANNEL
+                  value: {{ .Values.notification.channel | quote }}
+                - name: NOTIFY_ENABLED
+                  value: {{ .Values.notification.enabled | quote }}
+                # ClickHouse
+                - name: CLICKHOUSE_HOST
+                  value: {{ .Values.clickhouse.host | quote }}
+                - name: CLICKHOUSE_PORT
+                  value: {{ .Values.clickhouse.port | quote }}
+                - name: CLICKHOUSE_DATABASE
+                  value: {{ .Values.clickhouse.database | quote }}
+                - name: CLICKHOUSE_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.clickhouse.secretName }}
+                      key: {{ .Values.clickhouse.secretUserKey }}
+                - name: CLICKHOUSE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.clickhouse.secretName }}
+                      key: {{ .Values.clickhouse.secretPasswordKey }}
+              {{- with .Values.resources }}
+              resources:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+{{- end }}

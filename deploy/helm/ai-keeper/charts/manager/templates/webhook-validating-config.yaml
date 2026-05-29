@@ -1,0 +1,122 @@
+{{/*
+ValidatingWebhookConfiguration for the AIP CustomValidators (task 2.3).
+
+Each entry maps an API group's resource to the canonical kubebuilder
+URL pattern `/validate-<group>-<version>-<kind>` so the Go handlers
+registered by `internal/webhook.SetupWithManager` are reached.
+
+The CA bundle is injected by cert-manager via the
+`cert-manager.io/inject-ca-from` annotation, pointing at the
+Certificate object in this same chart.
+
+Resources covered:
+  - skill.ai-keeper.io/v1alpha1 Skill              (Requirements A1.3, A2.1—A2.6)
+  - skill.ai-keeper.io/v1alpha1 Tool               (Requirements A1.3, A9.2)
+  - agent.ai-keeper.io/v1alpha1 Agent              (Requirements A1.3, A2.1, A2.2)
+  - policy.ai-keeper.io/v1alpha1 Policy            (Requirements A1.3, A5.x)
+  - audit.ai-keeper.io/v1alpha1 AuditEvent         (Requirements A1.5)
+*/}}
+{{- if .Values.webhook.enabled -}}
+{{- $svcName := .Values.webhook.serviceName -}}
+{{- $svcNs := .Values.webhook.namespace -}}
+{{- $svcPort := (.Values.webhook.servicePort | default 443) | int -}}
+{{- $failurePolicy := .Values.webhook.failurePolicy | default "Fail" -}}
+{{- $timeout := (.Values.webhook.timeoutSeconds | default 10) | int -}}
+{{- $sideEffects := .Values.webhook.sideEffects | default "None" -}}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "manager.fullname" . }}-validating-webhook
+  labels:
+    {{- include "manager.labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ printf "%s/%s" $svcNs .Values.webhook.certificate.certificateName | quote }}
+webhooks:
+  - name: vskill.ai-keeper.io
+    admissionReviewVersions: ["v1"]
+    sideEffects: {{ $sideEffects }}
+    failurePolicy: {{ $failurePolicy }}
+    timeoutSeconds: {{ $timeout }}
+    clientConfig:
+      service:
+        name: {{ $svcName }}
+        namespace: {{ $svcNs }}
+        port: {{ $svcPort }}
+        path: /validate-skill-aip-io-v1alpha1-skill
+    rules:
+      - apiGroups: ["skill.ai-keeper.io"]
+        apiVersions: ["v1alpha1"]
+        resources: ["skills"]
+        operations: ["CREATE", "UPDATE"]
+        scope: "Namespaced"
+  - name: vtool.ai-keeper.io
+    admissionReviewVersions: ["v1"]
+    sideEffects: {{ $sideEffects }}
+    failurePolicy: {{ $failurePolicy }}
+    timeoutSeconds: {{ $timeout }}
+    clientConfig:
+      service:
+        name: {{ $svcName }}
+        namespace: {{ $svcNs }}
+        port: {{ $svcPort }}
+        path: /validate-skill-aip-io-v1alpha1-tool
+    rules:
+      - apiGroups: ["skill.ai-keeper.io"]
+        apiVersions: ["v1alpha1"]
+        resources: ["tools"]
+        operations: ["CREATE", "UPDATE"]
+        scope: "Namespaced"
+  - name: vagent.ai-keeper.io
+    admissionReviewVersions: ["v1"]
+    sideEffects: {{ $sideEffects }}
+    failurePolicy: {{ $failurePolicy }}
+    timeoutSeconds: {{ $timeout }}
+    clientConfig:
+      service:
+        name: {{ $svcName }}
+        namespace: {{ $svcNs }}
+        port: {{ $svcPort }}
+        path: /validate-agent-aip-io-v1alpha1-agent
+    rules:
+      - apiGroups: ["agent.ai-keeper.io"]
+        apiVersions: ["v1alpha1"]
+        resources: ["agents"]
+        operations: ["CREATE", "UPDATE"]
+        scope: "Namespaced"
+  - name: vpolicy.ai-keeper.io
+    admissionReviewVersions: ["v1"]
+    sideEffects: {{ $sideEffects }}
+    failurePolicy: {{ $failurePolicy }}
+    timeoutSeconds: {{ $timeout }}
+    clientConfig:
+      service:
+        name: {{ $svcName }}
+        namespace: {{ $svcNs }}
+        port: {{ $svcPort }}
+        path: /validate-policy-aip-io-v1alpha1-policy
+    rules:
+      - apiGroups: ["policy.ai-keeper.io"]
+        apiVersions: ["v1alpha1"]
+        resources: ["policies"]
+        operations: ["CREATE", "UPDATE"]
+        scope: "Namespaced"
+  - name: vauditevent.ai-keeper.io
+    admissionReviewVersions: ["v1"]
+    sideEffects: {{ $sideEffects }}
+    failurePolicy: {{ $failurePolicy }}
+    timeoutSeconds: {{ $timeout }}
+    clientConfig:
+      service:
+        name: {{ $svcName }}
+        namespace: {{ $svcNs }}
+        port: {{ $svcPort }}
+        path: /validate-audit-aip-io-v1alpha1-auditevent
+    rules:
+      # AuditEvent: gate every write op (CREATE/UPDATE/DELETE) so only
+      # system-annotated ServiceAccounts can write — Requirement A1.5.
+      - apiGroups: ["audit.ai-keeper.io"]
+        apiVersions: ["v1alpha1"]
+        resources: ["auditevents"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        scope: "Namespaced"
+{{- end }}

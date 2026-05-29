@@ -1,0 +1,1745 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+  name: agents.agent.ai-keeper.io
+spec:
+  group: agent.ai-keeper.io
+  names:
+    categories:
+    - aip
+    kind: Agent
+    listKind: AgentList
+    plural: agents
+    shortNames:
+    - ag
+    singular: agent
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.runtime.pattern
+      name: Pattern
+      type: string
+    - jsonPath: .status.replicas
+      name: Replicas
+      type: integer
+    - jsonPath: .status.readyReplicas
+      name: Ready
+      type: integer
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          Agent is the user-facing execution entity composed of Skills, identity,
+          runtime constraints, guardrails and channel bindings.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AgentSpec declares the desired state of an Agent.
+            properties:
+              audit:
+                description: AgentAudit describes audit policy for the agent.
+                properties:
+                  forwarders:
+                    items:
+                      description: AgentAuditForwarder describes a sink the audit
+                        pipeline copies to.
+                      properties:
+                        kind:
+                          enum:
+                          - SIEM
+                          - Webhook
+                          - Kafka
+                          - S3
+                          - Elasticsearch
+                          type: string
+                        ref:
+                          description: |-
+                            ResourceRef is the canonical AIP URI used to reference any other resource
+                            (skills, tools, models, data, prompts, channels, connectors, memory,
+                            quota, ref, siem, policy). The accepted shape is
+                            `<scheme>://<path>[@<version>]`.
+
+                            Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                            round-trip).
+                          maxLength: 512
+                          minLength: 8
+                          pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                          type: string
+                      required:
+                      - kind
+                      - ref
+                      type: object
+                    type: array
+                  level:
+                    enum:
+                    - "off"
+                    - basic
+                    - high
+                    - forensic
+                    type: string
+                  redactPII:
+                    type: boolean
+                  retention:
+                    description: |-
+                      Duration is a coarse-grained, human-friendly duration string used in
+                      CRDs. Supported units: ns, us, ms, s, m, h, d, w.
+
+                      Validates: Requirements A2.2.
+                    maxLength: 32
+                    minLength: 2
+                    pattern: ^\d+(ns|us|ms|s|m|h|d|w)$
+                    type: string
+                  storeRaw:
+                    description: AgentAuditStoreRaw declares prompt/output/tool-IO
+                      storage policies.
+                    properties:
+                      outputs:
+                        enum:
+                        - full
+                        - hashed
+                        - none
+                        type: string
+                      prompts:
+                        enum:
+                        - full
+                        - hashed
+                        - none
+                        type: string
+                      toolIo:
+                        enum:
+                        - full
+                        - hashed
+                        - none
+                        type: string
+                    type: object
+                type: object
+              channels:
+                items:
+                  description: AgentChannel declares a channel binding.
+                  properties:
+                    auth:
+                      description: Auth secret reference name.
+                      maxLength: 253
+                      type: string
+                    kind:
+                      description: Kind of channel.
+                      enum:
+                      - feishu
+                      - wecom
+                      - dingtalk
+                      - slack
+                      - teams
+                      - web
+                      - api
+                      - sdk
+                      - voice
+                      - email
+                      type: string
+                    rateLimit:
+                      description: AgentChannelRateLimit caps per-channel throughput.
+                      properties:
+                        concurrentSessions:
+                          format: int32
+                          minimum: 0
+                          type: integer
+                        requestsPerMinute:
+                          format: int32
+                          minimum: 0
+                          type: integer
+                      type: object
+                    ref:
+                      description: |-
+                        ResourceRef is the canonical AIP URI used to reference any other resource
+                        (skills, tools, models, data, prompts, channels, connectors, memory,
+                        quota, ref, siem, policy). The accepted shape is
+                        `<scheme>://<path>[@<version>]`.
+
+                        Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                        round-trip).
+                      maxLength: 512
+                      minLength: 8
+                      pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                      type: string
+                  required:
+                  - kind
+                  type: object
+                type: array
+              deployment:
+                description: AgentDeployment captures the deployment block.
+                properties:
+                  autoscale:
+                    description: AgentAutoscale configures HPA-like behaviour.
+                    properties:
+                      max:
+                        format: int32
+                        minimum: 0
+                        type: integer
+                      min:
+                        format: int32
+                        minimum: 0
+                        type: integer
+                      targetConcurrency:
+                        format: int32
+                        minimum: 1
+                        type: integer
+                    type: object
+                  placement:
+                    description: AgentPlacement is the deployment-placement block.
+                    properties:
+                      airGapped:
+                        type: boolean
+                      compliance:
+                        items:
+                          type: string
+                        type: array
+                      nodeSelector:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      zones:
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  replicas:
+                    format: int32
+                    minimum: 0
+                    type: integer
+                  rollout:
+                    description: AgentRollout configures the rollout strategy.
+                    properties:
+                      analysisInterval:
+                        description: |-
+                          Duration is a coarse-grained, human-friendly duration string used in
+                          CRDs. Supported units: ns, us, ms, s, m, h, d, w.
+
+                          Validates: Requirements A2.2.
+                        maxLength: 32
+                        minLength: 2
+                        pattern: ^\d+(ns|us|ms|s|m|h|d|w)$
+                        type: string
+                      analysisRef:
+                        description: |-
+                          ResourceRef is the canonical AIP URI used to reference any other resource
+                          (skills, tools, models, data, prompts, channels, connectors, memory,
+                          quota, ref, siem, policy). The accepted shape is
+                          `<scheme>://<path>[@<version>]`.
+
+                          Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                          round-trip).
+                        maxLength: 512
+                        minLength: 8
+                        pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                        type: string
+                      steps:
+                        description: Steps as percentages, e.g. ["10%", "30%", "100%"].
+                        items:
+                          type: string
+                        type: array
+                      strategy:
+                        enum:
+                        - recreate
+                        - rolling
+                        - canary
+                        - blue_green
+                        type: string
+                    type: object
+                type: object
+              description:
+                maxLength: 2000
+                type: string
+              displayName:
+                maxLength: 200
+                minLength: 1
+                type: string
+              guardrails:
+                description: GuardrailsBlock collects input / output / behavior chains.
+                properties:
+                  behavior:
+                    description: GuardrailBehavior captures behavior-stage rules.
+                    properties:
+                      allowedTopics:
+                        items:
+                          type: string
+                        type: array
+                      blockedTopics:
+                        items:
+                          type: string
+                        type: array
+                      languageLock:
+                        description: LanguageLock is a list of BCP-47 codes the agent
+                          may answer in.
+                        items:
+                          type: string
+                        type: array
+                      requiredCitations:
+                        type: boolean
+                      systemPrompt:
+                        description: |-
+                          ResourceRef is the canonical AIP URI used to reference any other resource
+                          (skills, tools, models, data, prompts, channels, connectors, memory,
+                          quota, ref, siem, policy). The accepted shape is
+                          `<scheme>://<path>[@<version>]`.
+
+                          Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                          round-trip).
+                        maxLength: 512
+                        minLength: 8
+                        pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                        type: string
+                    type: object
+                  input:
+                    items:
+                      description: GuardrailRule is one rule inside the chain.
+                      properties:
+                        action:
+                          description: Action when matched.
+                          enum:
+                          - allow
+                          - mask
+                          - block
+                          - warn
+                          - escalate
+                          type: string
+                        config:
+                          description: Config is provider-specific opaque config.
+                          x-kubernetes-preserve-unknown-fields: true
+                        kind:
+                          description: Kind names the built-in guardrail.
+                          enum:
+                          - PromptInjection
+                          - Jailbreak
+                          - PII
+                          - PIILeak
+                          - Toxicity
+                          - Hallucination
+                          - Grounding
+                          - ClassificationLeak
+                          - Bias
+                          - Profanity
+                          - Custom
+                          type: string
+                        provider:
+                          description: Provider name (aip-builtin, llamaguard-v3,
+                            nemo-guardrails, custom).
+                          maxLength: 64
+                          type: string
+                        rule:
+                          description: Rule is a CEL/regex string for kind=Custom.
+                          maxLength: 4096
+                          type: string
+                        threshold:
+                          maximum: 1
+                          minimum: 0
+                          type: number
+                      required:
+                      - kind
+                      type: object
+                    type: array
+                  output:
+                    items:
+                      description: GuardrailRule is one rule inside the chain.
+                      properties:
+                        action:
+                          description: Action when matched.
+                          enum:
+                          - allow
+                          - mask
+                          - block
+                          - warn
+                          - escalate
+                          type: string
+                        config:
+                          description: Config is provider-specific opaque config.
+                          x-kubernetes-preserve-unknown-fields: true
+                        kind:
+                          description: Kind names the built-in guardrail.
+                          enum:
+                          - PromptInjection
+                          - Jailbreak
+                          - PII
+                          - PIILeak
+                          - Toxicity
+                          - Hallucination
+                          - Grounding
+                          - ClassificationLeak
+                          - Bias
+                          - Profanity
+                          - Custom
+                          type: string
+                        provider:
+                          description: Provider name (aip-builtin, llamaguard-v3,
+                            nemo-guardrails, custom).
+                          maxLength: 64
+                          type: string
+                        rule:
+                          description: Rule is a CEL/regex string for kind=Custom.
+                          maxLength: 4096
+                          type: string
+                        threshold:
+                          maximum: 1
+                          minimum: 0
+                          type: number
+                      required:
+                      - kind
+                      type: object
+                    type: array
+                type: object
+              identity:
+                description: AgentIdentity declares the agent's runtime identity.
+                properties:
+                  representation:
+                    description: Representation overrides default `service_account`
+                      mode.
+                    properties:
+                      mode:
+                        description: Mode of identity representation.
+                        enum:
+                        - self
+                        - service_account
+                        - on_behalf_of
+                        type: string
+                      requireUserContext:
+                        description: |-
+                          RequireUserContext rejects requests lacking a user identity when
+                          true.
+                        type: boolean
+                      tokenExchange:
+                        description: TokenExchange is the IdP / exchanger configuration
+                          name.
+                        maxLength: 253
+                        type: string
+                    type: object
+                  serviceAccount:
+                    description: |-
+                      ServiceAccount is the name of the AIP ServiceAccount in the same
+                      namespace.
+                    maxLength: 253
+                    minLength: 1
+                    type: string
+                required:
+                - serviceAccount
+                type: object
+              memory:
+                description: AgentMemory bundles short and long term memory.
+                properties:
+                  longTerm:
+                    description: AgentMemoryLongTerm describes the long-term memory
+                      backend.
+                    properties:
+                      isolation:
+                        description: Isolation governs cross-tenant / cross-user visibility.
+                        enum:
+                        - shared
+                        - per_user
+                        - per_session
+                        - per_tenant
+                        type: string
+                      ref:
+                        description: |-
+                          ResourceRef is the canonical AIP URI used to reference any other resource
+                          (skills, tools, models, data, prompts, channels, connectors, memory,
+                          quota, ref, siem, policy). The accepted shape is
+                          `<scheme>://<path>[@<version>]`.
+
+                          Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                          round-trip).
+                        maxLength: 512
+                        minLength: 8
+                        pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                        type: string
+                      retention:
+                        description: |-
+                          Duration is a coarse-grained, human-friendly duration string used in
+                          CRDs. Supported units: ns, us, ms, s, m, h, d, w.
+
+                          Validates: Requirements A2.2.
+                        maxLength: 32
+                        minLength: 2
+                        pattern: ^\d+(ns|us|ms|s|m|h|d|w)$
+                        type: string
+                      type:
+                        enum:
+                        - vector
+                        - kv
+                        - graph
+                        - none
+                        type: string
+                      writePolicy:
+                        description: WritePolicy controls what the runtime is allowed
+                          to commit.
+                        enum:
+                        - auto
+                        - explicit_only
+                        - manual_review
+                        type: string
+                    type: object
+                  shortTerm:
+                    description: AgentMemoryShortTerm describes the short-term memory
+                      backend.
+                    properties:
+                      storage:
+                        description: Storage backend ref.
+                        maxLength: 512
+                        minLength: 8
+                        pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                        type: string
+                      ttl:
+                        description: |-
+                          Duration is a coarse-grained, human-friendly duration string used in
+                          CRDs. Supported units: ns, us, ms, s, m, h, d, w.
+
+                          Validates: Requirements A2.2.
+                        maxLength: 32
+                        minLength: 2
+                        pattern: ^\d+(ns|us|ms|s|m|h|d|w)$
+                        type: string
+                      type:
+                        enum:
+                        - conversation
+                        - summary
+                        - none
+                        type: string
+                      window:
+                        format: int32
+                        minimum: 0
+                        type: integer
+                    type: object
+                type: object
+              runtime:
+                description: AgentRuntime captures the runtime caps and pattern.
+                properties:
+                  budget:
+                    description: AgentBudget enforces per-session caps inside the
+                      runtime.
+                    properties:
+                      onExceed:
+                        description: OnExceed action.
+                        enum:
+                        - warn
+                        - terminate
+                        - request_approval
+                        type: string
+                      tokensPerSession:
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      tokensPerStep:
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      usdPerSession:
+                        description: |-
+                          MoneyAmount is the canonical wire representation of a USD amount used
+                          in CostBlock fields. We store money as a string with a constrained
+                          pattern (rather than `float64`) to keep CRD diffs bit-for-bit
+                          reproducible and to avoid the JSON-number rounding that breaks audit
+                          hashing (Requirements F4, F22).
+                        maxLength: 32
+                        pattern: ^\d+(\.\d+)?$
+                        type: string
+                    type: object
+                  determinism:
+                    description: AgentDeterminism configures LLM determinism knobs.
+                    properties:
+                      seed:
+                        description: Seed for reproducibility (nullable).
+                        format: int64
+                        type: integer
+                      temperature:
+                        maximum: 2
+                        minimum: 0
+                        type: number
+                      topP:
+                        maximum: 1
+                        minimum: 0
+                        type: number
+                    type: object
+                  maxSteps:
+                    format: int32
+                    maximum: 100
+                    minimum: 1
+                    type: integer
+                  maxToolCalls:
+                    format: int32
+                    maximum: 200
+                    minimum: 1
+                    type: integer
+                  parallelism:
+                    format: int32
+                    maximum: 32
+                    minimum: 1
+                    type: integer
+                  pattern:
+                    description: Pattern selects the FSM.
+                    enum:
+                    - react
+                    - plan_execute
+                    - reflection
+                    - workflow
+                    - tool_calling
+                    - multi_agent
+                    type: string
+                  sandbox:
+                    description: AgentSandbox configures isolation for code or destructive
+                      tool runs.
+                    properties:
+                      cpuLimit:
+                        maxLength: 32
+                        type: string
+                      egressAllowList:
+                        items:
+                          type: string
+                        type: array
+                      enabled:
+                        type: boolean
+                      memoryLimit:
+                        maxLength: 32
+                        type: string
+                      networkPolicy:
+                        enum:
+                        - deny_all
+                        - allow_list
+                        - allow_all
+                        type: string
+                      type:
+                        enum:
+                        - none
+                        - gvisor
+                        - firecracker
+                        - kata
+                        - e2b
+                        type: string
+                    type: object
+                  timeout:
+                    description: |-
+                      Duration is a coarse-grained, human-friendly duration string used in
+                      CRDs. Supported units: ns, us, ms, s, m, h, d, w.
+
+                      Validates: Requirements A2.2.
+                    maxLength: 32
+                    minLength: 2
+                    pattern: ^\d+(ns|us|ms|s|m|h|d|w)$
+                    type: string
+                required:
+                - pattern
+                type: object
+              skills:
+                items:
+                  description: |-
+                    AgentSkillBinding attaches a Skill to the agent with a version
+                    constraint.
+                  properties:
+                    alias:
+                      description: Alias to use within the agent.
+                      maxLength: 64
+                      type: string
+                    enabled:
+                      description: Enabled defaults to true.
+                      type: boolean
+                    ref:
+                      description: Ref is the skill://name form.
+                      maxLength: 512
+                      minLength: 8
+                      pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                      type: string
+                    versionConstraint:
+                      description: VersionConstraint is an npm-style range; resolved
+                        by the controller.
+                      maxLength: 128
+                      type: string
+                  required:
+                  - ref
+                  type: object
+                minItems: 1
+                type: array
+            required:
+            - displayName
+            - identity
+            - runtime
+            - skills
+            type: object
+          status:
+            description: AgentStatus is the observed state of the agent.
+            properties:
+              attachedSkills:
+                description: AttachedSkills are the resolved skill refs.
+                items:
+                  description: |-
+                    ResourceRef is the canonical AIP URI used to reference any other resource
+                    (skills, tools, models, data, prompts, channels, connectors, memory,
+                    quota, ref, siem, policy). The accepted shape is
+                    `<scheme>://<path>[@<version>]`.
+
+                    Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                    round-trip).
+                  maxLength: 512
+                  minLength: 8
+                  pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                  type: string
+                type: array
+              conditions:
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              effectivePolicies:
+                description: EffectivePolicies attached at the PDP.
+                items:
+                  type: string
+                type: array
+              metrics:
+                description: AgentMetrics surfaces user / cost / latency rollups.
+                properties:
+                  activeUsers:
+                    format: int32
+                    type: integer
+                  today:
+                    description: AgentTodayMetrics is the rolling 24h metric snapshot.
+                    properties:
+                      costUsd:
+                        description: |-
+                          MoneyAmount is the canonical wire representation of a USD amount used
+                          in CostBlock fields. We store money as a string with a constrained
+                          pattern (rather than `float64`) to keep CRD diffs bit-for-bit
+                          reproducible and to avoid the JSON-number rounding that breaks audit
+                          hashing (Requirements F4, F22).
+                        maxLength: 32
+                        pattern: ^\d+(\.\d+)?$
+                        type: string
+                      errorRate:
+                        type: number
+                      invocations:
+                        format: int64
+                        type: integer
+                      p95LatencyMs:
+                        format: int32
+                        type: integer
+                    type: object
+                type: object
+              observedGeneration:
+                format: int64
+                type: integer
+              phase:
+                description: |-
+                  Phase is the coarse-grained status.phase value reported by every AIP
+                  controller. The combined enum covers every controller in the platform
+                  (Skill / Agent / Policy / Tool / DataSource / KB / ModelEndpoint /
+                  ModelRouter / Tenant / SA / Budget / Quota), so a single Phase type can
+                  be embedded in any status struct.
+
+                  Validates: Requirements A3, A4, A5 (state machines reference these
+                  values).
+                enum:
+                - Pending
+                - Validating
+                - Resolving
+                - Building
+                - Registering
+                - Evaluating
+                - Active
+                - Degraded
+                - Failed
+                - Deprecated
+                - Terminating
+                - Suspended
+                - Expired
+                - ResolvingSkills
+                - AttachingPolicies
+                - Provisioning
+                - Deploying
+                - Configuring
+                - RollingOut
+                - Running
+                - Paused
+                - RolledBack
+                type: string
+              readyReplicas:
+                description: ReadyReplicas reported by the underlying Deployment.
+                format: int32
+                type: integer
+              replicas:
+                description: Replicas is the desired replica count last observed.
+                format: int32
+                type: integer
+              rolloutStatus:
+                description: AgentRolloutStatus surfaces the current rollout step.
+                properties:
+                  currentStep:
+                    format: int32
+                    type: integer
+                  phase:
+                    enum:
+                    - Progressing
+                    - Promoting
+                    - Paused
+                    - Aborted
+                    - Succeeded
+                    type: string
+                  trafficWeight:
+                    format: int32
+                    maximum: 100
+                    minimum: 0
+                    type: integer
+                type: object
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+  - additionalPrinterColumns:
+    - jsonPath: .spec.runtime.pattern
+      name: Pattern
+      type: string
+    - jsonPath: .status.replicas
+      name: Replicas
+      type: integer
+    - jsonPath: .status.readyReplicas
+      name: Ready
+      type: integer
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          Agent is the user-facing execution entity composed of Skills, identity,
+          runtime constraints, guardrails and channel bindings (v1beta1).
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AgentSpec declares the desired state of an Agent (v1beta1).
+            properties:
+              audit:
+                description: AgentAudit describes audit policy for the agent.
+                properties:
+                  forwarders:
+                    items:
+                      description: AgentAuditForwarder describes a sink the audit
+                        pipeline copies to.
+                      properties:
+                        kind:
+                          enum:
+                          - SIEM
+                          - Webhook
+                          - Kafka
+                          - S3
+                          - Elasticsearch
+                          type: string
+                        ref:
+                          description: |-
+                            ResourceRef is the canonical AIP URI used to reference any other resource
+                            (skills, tools, models, data, prompts, channels, connectors, memory,
+                            quota, ref, siem, policy). The accepted shape is
+                            `<scheme>://<path>[@<version>]`.
+
+                            Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                            round-trip).
+                          maxLength: 512
+                          minLength: 8
+                          pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                          type: string
+                      required:
+                      - kind
+                      - ref
+                      type: object
+                    type: array
+                  level:
+                    enum:
+                    - "off"
+                    - basic
+                    - high
+                    - forensic
+                    type: string
+                  redactPII:
+                    type: boolean
+                  retention:
+                    description: |-
+                      Duration is a coarse-grained, human-friendly duration string used in
+                      CRDs. Supported units: ns, us, ms, s, m, h, d, w.
+
+                      Validates: Requirements A2.2.
+                    maxLength: 32
+                    minLength: 2
+                    pattern: ^\d+(ns|us|ms|s|m|h|d|w)$
+                    type: string
+                  storeRaw:
+                    description: AgentAuditStoreRaw declares prompt/output/tool-IO
+                      storage policies.
+                    properties:
+                      outputs:
+                        enum:
+                        - full
+                        - hashed
+                        - none
+                        type: string
+                      prompts:
+                        enum:
+                        - full
+                        - hashed
+                        - none
+                        type: string
+                      toolIo:
+                        enum:
+                        - full
+                        - hashed
+                        - none
+                        type: string
+                    type: object
+                type: object
+              channels:
+                items:
+                  description: AgentChannel declares a channel binding.
+                  properties:
+                    auth:
+                      maxLength: 253
+                      type: string
+                    kind:
+                      enum:
+                      - feishu
+                      - wecom
+                      - dingtalk
+                      - slack
+                      - teams
+                      - web
+                      - api
+                      - sdk
+                      - voice
+                      - email
+                      type: string
+                    rateLimit:
+                      description: AgentChannelRateLimit caps per-channel throughput.
+                      properties:
+                        concurrentSessions:
+                          format: int32
+                          minimum: 0
+                          type: integer
+                        requestsPerMinute:
+                          format: int32
+                          minimum: 0
+                          type: integer
+                      type: object
+                    ref:
+                      description: |-
+                        ResourceRef is the canonical AIP URI used to reference any other resource
+                        (skills, tools, models, data, prompts, channels, connectors, memory,
+                        quota, ref, siem, policy). The accepted shape is
+                        `<scheme>://<path>[@<version>]`.
+
+                        Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                        round-trip).
+                      maxLength: 512
+                      minLength: 8
+                      pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                      type: string
+                  required:
+                  - kind
+                  type: object
+                type: array
+              deployment:
+                description: AgentDeployment captures the deployment block.
+                properties:
+                  autoscale:
+                    description: AgentAutoscale configures HPA-like behaviour.
+                    properties:
+                      max:
+                        format: int32
+                        minimum: 0
+                        type: integer
+                      min:
+                        format: int32
+                        minimum: 0
+                        type: integer
+                      targetConcurrency:
+                        format: int32
+                        minimum: 1
+                        type: integer
+                    type: object
+                  placement:
+                    description: AgentPlacement is the deployment-placement block.
+                    properties:
+                      airGapped:
+                        type: boolean
+                      compliance:
+                        items:
+                          type: string
+                        type: array
+                      nodeSelector:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      zones:
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  replicas:
+                    format: int32
+                    minimum: 0
+                    type: integer
+                  rollout:
+                    description: AgentRollout configures the rollout strategy (enhanced
+                      in v1beta1).
+                    properties:
+                      analysis:
+                        description: |-
+                          Analysis provides inline canary analysis configuration.
+                          New in v1beta1.
+                        properties:
+                          autoRollback:
+                            description: AutoRollback triggers automatic rollback
+                              on analysis failure.
+                            type: boolean
+                          interval:
+                            description: Interval between analysis runs.
+                            maxLength: 32
+                            minLength: 2
+                            pattern: ^\d+(ns|us|ms|s|m|h|d|w)$
+                            type: string
+                          maxRetries:
+                            description: MaxRetries before marking the analysis as
+                              failed.
+                            format: int32
+                            minimum: 0
+                            type: integer
+                          metrics:
+                            description: Metrics to evaluate at each analysis interval.
+                            items:
+                              description: |-
+                                RolloutAnalysisMetric defines a metric to evaluate during canary analysis.
+                                New in v1beta1.
+                              properties:
+                                failureLimit:
+                                  description: FailureLimit is the max consecutive
+                                    failures before rollback.
+                                  format: int32
+                                  minimum: 1
+                                  type: integer
+                                name:
+                                  description: Name of the metric (e.g. "error_rate",
+                                    "latency_p99", "cost_per_call").
+                                  maxLength: 64
+                                  minLength: 1
+                                  type: string
+                                query:
+                                  description: Query is a PromQL or custom query to
+                                    evaluate the metric.
+                                  maxLength: 1024
+                                  type: string
+                                threshold:
+                                  description: Threshold is a CEL expression the metric
+                                    must satisfy (e.g. "value < 0.01").
+                                  maxLength: 512
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
+                        type: object
+                      analysisInterval:
+                        description: |-
+                          Duration is a coarse-grained, human-friendly duration string used in
+                          CRDs. Supported units: ns, us, ms, s, m, h, d, w.
+
+                          Validates: Requirements A2.2.
+                        maxLength: 32
+                        minLength: 2
+                        pattern: ^\d+(ns|us|ms|s|m|h|d|w)$
+                        type: string
+                      analysisRef:
+                        description: |-
+                          ResourceRef is the canonical AIP URI used to reference any other resource
+                          (skills, tools, models, data, prompts, channels, connectors, memory,
+                          quota, ref, siem, policy). The accepted shape is
+                          `<scheme>://<path>[@<version>]`.
+
+                          Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                          round-trip).
+                        maxLength: 512
+                        minLength: 8
+                        pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                        type: string
+                      steps:
+                        items:
+                          type: string
+                        type: array
+                      strategy:
+                        enum:
+                        - recreate
+                        - rolling
+                        - canary
+                        - blue_green
+                        type: string
+                    type: object
+                type: object
+              description:
+                maxLength: 2000
+                type: string
+              displayName:
+                maxLength: 200
+                minLength: 1
+                type: string
+              guardrails:
+                description: GuardrailsBlock collects input / output / behavior chains.
+                properties:
+                  behavior:
+                    description: GuardrailBehavior captures behavior-stage rules.
+                    properties:
+                      allowedTopics:
+                        items:
+                          type: string
+                        type: array
+                      blockedTopics:
+                        items:
+                          type: string
+                        type: array
+                      languageLock:
+                        items:
+                          type: string
+                        type: array
+                      requiredCitations:
+                        type: boolean
+                      systemPrompt:
+                        description: |-
+                          ResourceRef is the canonical AIP URI used to reference any other resource
+                          (skills, tools, models, data, prompts, channels, connectors, memory,
+                          quota, ref, siem, policy). The accepted shape is
+                          `<scheme>://<path>[@<version>]`.
+
+                          Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                          round-trip).
+                        maxLength: 512
+                        minLength: 8
+                        pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                        type: string
+                    type: object
+                  input:
+                    items:
+                      description: GuardrailRule is one rule inside the chain.
+                      properties:
+                        action:
+                          enum:
+                          - allow
+                          - mask
+                          - block
+                          - warn
+                          - escalate
+                          type: string
+                        config:
+                          x-kubernetes-preserve-unknown-fields: true
+                        kind:
+                          enum:
+                          - PromptInjection
+                          - Jailbreak
+                          - PII
+                          - PIILeak
+                          - Toxicity
+                          - Hallucination
+                          - Grounding
+                          - ClassificationLeak
+                          - Bias
+                          - Profanity
+                          - Custom
+                          type: string
+                        provider:
+                          maxLength: 64
+                          type: string
+                        rule:
+                          maxLength: 4096
+                          type: string
+                        threshold:
+                          maximum: 1
+                          minimum: 0
+                          type: number
+                      required:
+                      - kind
+                      type: object
+                    type: array
+                  output:
+                    items:
+                      description: GuardrailRule is one rule inside the chain.
+                      properties:
+                        action:
+                          enum:
+                          - allow
+                          - mask
+                          - block
+                          - warn
+                          - escalate
+                          type: string
+                        config:
+                          x-kubernetes-preserve-unknown-fields: true
+                        kind:
+                          enum:
+                          - PromptInjection
+                          - Jailbreak
+                          - PII
+                          - PIILeak
+                          - Toxicity
+                          - Hallucination
+                          - Grounding
+                          - ClassificationLeak
+                          - Bias
+                          - Profanity
+                          - Custom
+                          type: string
+                        provider:
+                          maxLength: 64
+                          type: string
+                        rule:
+                          maxLength: 4096
+                          type: string
+                        threshold:
+                          maximum: 1
+                          minimum: 0
+                          type: number
+                      required:
+                      - kind
+                      type: object
+                    type: array
+                type: object
+              identity:
+                description: AgentIdentity declares the agent's runtime identity.
+                properties:
+                  representation:
+                    description: AgentRepresentation captures `identity.representation`.
+                    properties:
+                      mode:
+                        enum:
+                        - self
+                        - service_account
+                        - on_behalf_of
+                        type: string
+                      requireUserContext:
+                        type: boolean
+                      tokenExchange:
+                        maxLength: 253
+                        type: string
+                    type: object
+                  serviceAccount:
+                    maxLength: 253
+                    minLength: 1
+                    type: string
+                required:
+                - serviceAccount
+                type: object
+              memory:
+                description: AgentMemory bundles short and long term memory.
+                properties:
+                  longTerm:
+                    description: AgentMemoryLongTerm describes the long-term memory
+                      backend.
+                    properties:
+                      isolation:
+                        enum:
+                        - shared
+                        - per_user
+                        - per_session
+                        - per_tenant
+                        type: string
+                      ref:
+                        description: |-
+                          ResourceRef is the canonical AIP URI used to reference any other resource
+                          (skills, tools, models, data, prompts, channels, connectors, memory,
+                          quota, ref, siem, policy). The accepted shape is
+                          `<scheme>://<path>[@<version>]`.
+
+                          Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                          round-trip).
+                        maxLength: 512
+                        minLength: 8
+                        pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                        type: string
+                      retention:
+                        description: |-
+                          Duration is a coarse-grained, human-friendly duration string used in
+                          CRDs. Supported units: ns, us, ms, s, m, h, d, w.
+
+                          Validates: Requirements A2.2.
+                        maxLength: 32
+                        minLength: 2
+                        pattern: ^\d+(ns|us|ms|s|m|h|d|w)$
+                        type: string
+                      type:
+                        enum:
+                        - vector
+                        - kv
+                        - graph
+                        - none
+                        type: string
+                      writePolicy:
+                        enum:
+                        - auto
+                        - explicit_only
+                        - manual_review
+                        type: string
+                    type: object
+                  shortTerm:
+                    description: AgentMemoryShortTerm describes the short-term memory
+                      backend.
+                    properties:
+                      storage:
+                        description: |-
+                          ResourceRef is the canonical AIP URI used to reference any other resource
+                          (skills, tools, models, data, prompts, channels, connectors, memory,
+                          quota, ref, siem, policy). The accepted shape is
+                          `<scheme>://<path>[@<version>]`.
+
+                          Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                          round-trip).
+                        maxLength: 512
+                        minLength: 8
+                        pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                        type: string
+                      ttl:
+                        description: |-
+                          Duration is a coarse-grained, human-friendly duration string used in
+                          CRDs. Supported units: ns, us, ms, s, m, h, d, w.
+
+                          Validates: Requirements A2.2.
+                        maxLength: 32
+                        minLength: 2
+                        pattern: ^\d+(ns|us|ms|s|m|h|d|w)$
+                        type: string
+                      type:
+                        enum:
+                        - conversation
+                        - summary
+                        - none
+                        type: string
+                      window:
+                        format: int32
+                        minimum: 0
+                        type: integer
+                    type: object
+                type: object
+              runtime:
+                description: AgentRuntime captures the runtime caps and pattern.
+                properties:
+                  budget:
+                    description: AgentBudget enforces per-session caps inside the
+                      runtime.
+                    properties:
+                      onExceed:
+                        enum:
+                        - warn
+                        - terminate
+                        - request_approval
+                        type: string
+                      tokensPerSession:
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      tokensPerStep:
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      usdPerSession:
+                        description: |-
+                          MoneyAmount is the canonical wire representation of a USD amount used
+                          in CostBlock fields. We store money as a string with a constrained
+                          pattern (rather than `float64`) to keep CRD diffs bit-for-bit
+                          reproducible and to avoid the JSON-number rounding that breaks audit
+                          hashing (Requirements F4, F22).
+                        maxLength: 32
+                        pattern: ^\d+(\.\d+)?$
+                        type: string
+                    type: object
+                  determinism:
+                    description: AgentDeterminism configures LLM determinism knobs.
+                    properties:
+                      seed:
+                        format: int64
+                        type: integer
+                      temperature:
+                        maximum: 2
+                        minimum: 0
+                        type: number
+                      topP:
+                        maximum: 1
+                        minimum: 0
+                        type: number
+                    type: object
+                  maxSteps:
+                    format: int32
+                    maximum: 100
+                    minimum: 1
+                    type: integer
+                  maxToolCalls:
+                    format: int32
+                    maximum: 200
+                    minimum: 1
+                    type: integer
+                  parallelism:
+                    format: int32
+                    maximum: 32
+                    minimum: 1
+                    type: integer
+                  pattern:
+                    enum:
+                    - react
+                    - plan_execute
+                    - reflection
+                    - workflow
+                    - tool_calling
+                    - multi_agent
+                    type: string
+                  sandbox:
+                    description: AgentSandbox configures isolation for code or destructive
+                      tool runs.
+                    properties:
+                      cpuLimit:
+                        maxLength: 32
+                        type: string
+                      egressAllowList:
+                        items:
+                          type: string
+                        type: array
+                      enabled:
+                        type: boolean
+                      memoryLimit:
+                        maxLength: 32
+                        type: string
+                      networkPolicy:
+                        enum:
+                        - deny_all
+                        - allow_list
+                        - allow_all
+                        type: string
+                      type:
+                        enum:
+                        - none
+                        - gvisor
+                        - firecracker
+                        - kata
+                        - e2b
+                        type: string
+                    type: object
+                  timeout:
+                    description: |-
+                      Duration is a coarse-grained, human-friendly duration string used in
+                      CRDs. Supported units: ns, us, ms, s, m, h, d, w.
+
+                      Validates: Requirements A2.2.
+                    maxLength: 32
+                    minLength: 2
+                    pattern: ^\d+(ns|us|ms|s|m|h|d|w)$
+                    type: string
+                required:
+                - pattern
+                type: object
+              skills:
+                items:
+                  description: AgentSkillBinding attaches a Skill to the agent.
+                  properties:
+                    alias:
+                      maxLength: 64
+                      type: string
+                    enabled:
+                      type: boolean
+                    ref:
+                      description: |-
+                        ResourceRef is the canonical AIP URI used to reference any other resource
+                        (skills, tools, models, data, prompts, channels, connectors, memory,
+                        quota, ref, siem, policy). The accepted shape is
+                        `<scheme>://<path>[@<version>]`.
+
+                        Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                        round-trip).
+                      maxLength: 512
+                      minLength: 8
+                      pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                      type: string
+                    versionConstraint:
+                      maxLength: 128
+                      type: string
+                  required:
+                  - ref
+                  type: object
+                minItems: 1
+                type: array
+            required:
+            - displayName
+            - identity
+            - runtime
+            - skills
+            type: object
+          status:
+            description: AgentStatus is the observed state of the agent.
+            properties:
+              attachedSkills:
+                items:
+                  description: |-
+                    ResourceRef is the canonical AIP URI used to reference any other resource
+                    (skills, tools, models, data, prompts, channels, connectors, memory,
+                    quota, ref, siem, policy). The accepted shape is
+                    `<scheme>://<path>[@<version>]`.
+
+                    Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                    round-trip).
+                  maxLength: 512
+                  minLength: 8
+                  pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                  type: string
+                type: array
+              conditions:
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              effectivePolicies:
+                items:
+                  type: string
+                type: array
+              metrics:
+                description: AgentMetrics surfaces user / cost / latency rollups.
+                properties:
+                  activeUsers:
+                    format: int32
+                    type: integer
+                  today:
+                    description: AgentTodayMetrics is the rolling 24h metric snapshot.
+                    properties:
+                      costUsd:
+                        description: |-
+                          MoneyAmount is the canonical wire representation of a USD amount used
+                          in CostBlock fields. We store money as a string with a constrained
+                          pattern (rather than `float64`) to keep CRD diffs bit-for-bit
+                          reproducible and to avoid the JSON-number rounding that breaks audit
+                          hashing (Requirements F4, F22).
+                        maxLength: 32
+                        pattern: ^\d+(\.\d+)?$
+                        type: string
+                      errorRate:
+                        type: number
+                      invocations:
+                        format: int64
+                        type: integer
+                      p95LatencyMs:
+                        format: int32
+                        type: integer
+                    type: object
+                type: object
+              observedGeneration:
+                format: int64
+                type: integer
+              phase:
+                description: |-
+                  Phase is the coarse-grained status.phase value reported by every AIP
+                  controller. The combined enum covers every controller in the platform
+                  (Skill / Agent / Policy / Tool / DataSource / KB / ModelEndpoint /
+                  ModelRouter / Tenant / SA / Budget / Quota), so a single Phase type can
+                  be embedded in any status struct.
+
+                  Validates: Requirements A3, A4, A5 (state machines reference these
+                  values).
+                enum:
+                - Pending
+                - Validating
+                - Resolving
+                - Building
+                - Registering
+                - Evaluating
+                - Active
+                - Degraded
+                - Failed
+                - Deprecated
+                - Terminating
+                - Suspended
+                - Expired
+                - ResolvingSkills
+                - AttachingPolicies
+                - Provisioning
+                - Deploying
+                - Configuring
+                - RollingOut
+                - Running
+                - Paused
+                - RolledBack
+                type: string
+              readyReplicas:
+                format: int32
+                type: integer
+              replicas:
+                format: int32
+                type: integer
+              rolloutStatus:
+                description: AgentRolloutStatus surfaces the current rollout step.
+                properties:
+                  currentStep:
+                    format: int32
+                    type: integer
+                  phase:
+                    enum:
+                    - Progressing
+                    - Promoting
+                    - Paused
+                    - Aborted
+                    - Succeeded
+                    type: string
+                  trafficWeight:
+                    format: int32
+                    maximum: 100
+                    minimum: 0
+                    type: integer
+                type: object
+            type: object
+        type: object
+    served: true
+    storage: false
+    subresources:
+      status: {}

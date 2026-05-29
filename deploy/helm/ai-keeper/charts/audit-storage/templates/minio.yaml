@@ -1,0 +1,154 @@
+{{- if .Values.minio.enabled }}
+# MinIO — S3-compatible object storage with Object Lock (WORM)
+---
+# MinIO StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "audit-storage.fullname" . }}-minio
+  labels:
+    {{- include "audit-storage.minio.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "audit-storage.fullname" . }}-minio
+  replicas: {{ .Values.minio.replicas }}
+  selector:
+    matchLabels:
+      {{- include "audit-storage.minio.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "audit-storage.minio.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: minio
+          image: "{{ .Values.minio.image.repository }}:{{ .Values.minio.image.tag }}"
+          imagePullPolicy: {{ .Values.minio.image.pullPolicy }}
+          args:
+            - server
+            - /data
+            - --console-address
+            - ":{{ .Values.minio.consolePort }}"
+          env:
+            - name: MINIO_ROOT_USER
+              value: {{ .Values.minio.rootUser | quote }}
+            - name: MINIO_ROOT_PASSWORD
+              value: {{ .Values.minio.rootPassword | quote }}
+          ports:
+            - name: api
+              containerPort: {{ .Values.minio.port }}
+              protocol: TCP
+            - name: console
+              containerPort: {{ .Values.minio.consolePort }}
+              protocol: TCP
+          {{- if .Values.minio.storage.enabled }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          {{- end }}
+          resources:
+            {{- toYaml .Values.minio.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: api
+            initialDelaySeconds: 10
+            periodSeconds: 20
+  {{- if .Values.minio.storage.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.minio.storage.storageClass }}
+        storageClassName: {{ .Values.minio.storage.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.minio.storage.size }}
+  {{- end }}
+---
+# MinIO Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "audit-storage.fullname" . }}-minio
+  labels:
+    {{- include "audit-storage.minio.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: api
+      port: {{ .Values.minio.port }}
+      targetPort: api
+      protocol: TCP
+    - name: console
+      port: {{ .Values.minio.consolePort }}
+      targetPort: console
+      protocol: TCP
+  selector:
+    {{- include "audit-storage.minio.selectorLabels" . | nindent 4 }}
+---
+# MinIO bucket creation Job — creates bucket with Object Lock enabled
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "audit-storage.fullname" . }}-minio-setup
+  labels:
+    {{- include "audit-storage.minio.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "audit-storage.minio.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: minio-setup
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: "{{ .Values.minio.mcImage.repository }}:{{ .Values.minio.mcImage.tag }}"
+          imagePullPolicy: {{ .Values.minio.mcImage.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              MINIO_HOST="http://{{ include "audit-storage.fullname" . }}-minio:{{ .Values.minio.port }}"
+              # Wait for MinIO to be ready
+              until mc alias set local "$MINIO_HOST" "{{ .Values.minio.rootUser }}" "{{ .Values.minio.rootPassword }}" 2>/dev/null; do
+                echo "Waiting for MinIO..."
+                sleep 2
+              done
+              # Create bucket with Object Lock enabled
+              if ! mc ls local/{{ .Values.minio.bucket.name }} 2>/dev/null; then
+                mc mb local/{{ .Values.minio.bucket.name }} --with-lock
+                echo "Bucket '{{ .Values.minio.bucket.name }}' created with Object Lock enabled."
+              else
+                echo "Bucket '{{ .Values.minio.bucket.name }}' already exists."
+              fi
+              # Set retention policy: Compliance mode, {{ .Values.minio.bucket.retentionDays }} days
+              mc retention set --default COMPLIANCE "{{ .Values.minio.bucket.retentionDays }}d" local/{{ .Values.minio.bucket.name }}
+              echo "Retention policy set: COMPLIANCE mode, {{ .Values.minio.bucket.retentionDays }} days."
+{{- end }}

@@ -1,0 +1,59 @@
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Tool
+metadata:
+  name: legal-search-openapi
+  namespace: legal-dept
+spec:
+  displayName: Legal Search API
+  protocol: openapi
+  endpoint: https://legal-search.internal.example.com/v1
+  description: Full-text and semantic search across legal document corpus
+  sideEffects: read_only
+  authentication:
+    mode: oauth2_obo
+    tokenEndpoint: https://auth.example.com/oauth/token
+    scopes:
+      - legal.read
+  schema:
+    input:
+      type: object
+      properties:
+        query:
+          type: string
+        filters:
+          type: object
+          properties:
+            documentType:
+              type: string
+              enum: [contract, regulation, case_law, memo]
+            dateRange:
+              type: object
+              properties:
+                from:
+                  type: string
+                  format: date
+                to:
+                  type: string
+                  format: date
+        limit:
+          type: integer
+          default: 10
+    output:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              snippet:
+                type: string
+              score:
+                type: number
+  openapiSpec: https://legal-search.internal.example.com/v1/openapi.json
+  rateLimit:
+    requestsPerMinute: 120

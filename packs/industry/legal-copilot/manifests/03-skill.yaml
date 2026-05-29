@@ -1,0 +1,83 @@
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Skill
+metadata:
+  name: contract-review
+  namespace: legal-dept
+spec:
+  version: "1.0.0"
+  stability: stable
+  interface:
+    input:
+      schema:
+        type: object
+        required:
+          - contractId
+          - query
+        properties:
+          contractId:
+            type: string
+            description: The contract document ID to review
+          query:
+            type: string
+            description: User question about the contract
+          language:
+            type: string
+            enum: [en, zh]
+            default: en
+    output:
+      schema:
+        type: object
+        required:
+          - answer
+          - citations
+        properties:
+          answer:
+            type: string
+            description: The review answer with watermark
+          citations:
+            type: array
+            items:
+              type: object
+              properties:
+                source:
+                  type: string
+                chunk:
+                  type: string
+                page:
+                  type: integer
+          watermark:
+            type: string
+            description: Invisible watermark identifier
+  implementation:
+    runtime: python
+    image: registry.example.com/aip/skills/contract-review:1.0.0
+    entrypoint: contract_review:contract_review
+    requires:
+      models:
+        - alias: reasoner
+          versionConstraint: ">=2024.01"
+      tools:
+        - ref: tool://legal-dept/docusign-mcp
+        - ref: tool://legal-dept/legal-search-openapi
+      dataSources:
+        - ref: data://legal-dept/legal-kb-source
+  governance:
+    classification: confidential
+    pii:
+      onInput: detect_and_mask
+      onOutput: detect_and_block
+      patternsRef: ref://patterns/legal-pii
+  cost:
+    budget: ref://budget/legal-dept-monthly
+  slo:
+    p95LatencyMs: 8000
+    successRate: 0.95
+  evaluation:
+    evalSet: ref://eval/contract-review-v1
+    schedule: "0 2 * * 1"
+    gates:
+      promoteToStable:
+        minScore: 0.85
+        metrics:
+          - accuracy
+          - groundedness

@@ -1,0 +1,71 @@
+apiVersion: agent.ai-keeper.io/v1alpha1
+kind: Agent
+metadata:
+  name: legal-copilot
+  namespace: legal-dept
+spec:
+  displayName: Legal Copilot
+  description: AI assistant for contract review and legal research
+  identity:
+    serviceAccountRef: ref://sa/legal-dept/legal-copilot-sa
+    representation:
+      mode: on_behalf_of
+      requireUserContext: true
+  skills:
+    - ref: skill://legal-dept/contract-review@1.0.0
+      versionConstraint: "^1.0.0"
+  runtime:
+    pattern: tool_calling
+    maxSteps: 10
+    maxToolCalls: 20
+    timeout: 120s
+    determinism:
+      temperature: 0.1
+      topP: 0.9
+    budget:
+      tokensPerSession: 50000
+      usdPerSession: 0.50
+      onExceed: terminate
+  memory:
+    shortTerm:
+      enabled: true
+      maxMessages: 50
+      ttl: 24h
+    isolation: per_session
+  guardrails:
+    input:
+      - kind: PromptInjection
+        provider: aip-builtin
+        action: block
+      - kind: PII
+        provider: aip-builtin
+        action: mask
+    output:
+      - kind: Hallucination
+        provider: aip-builtin
+        action: warn
+      - kind: ClassificationLeak
+        provider: aip-builtin
+        action: block
+    behavior:
+      requiredCitations: true
+      blockedTopics:
+        - financial_advice
+        - medical_advice
+  governance:
+    classification: confidential
+    audit:
+      level: high
+      includePromptHashes: true
+  channels:
+    - type: feishu
+      appId: cli_legal_copilot
+      rateLimit:
+        requestsPerMinute: 30
+        concurrentSessions: 10
+  deployment:
+    replicas: 2
+    autoscaling:
+      minReplicas: 2
+      maxReplicas: 8
+      targetCPUUtilization: 70

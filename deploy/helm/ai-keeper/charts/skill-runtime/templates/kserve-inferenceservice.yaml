@@ -1,0 +1,31 @@
+{{- if .Values.kserve.enabled }}
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: {{ include "skill-runtime.fullname" . }}
+  labels:
+    {{- include "skill-runtime.labels" . | nindent 4 }}
+spec:
+  predictor:
+    minReplicas: {{ .Values.kserve.predictor.minReplicas }}
+    maxReplicas: {{ .Values.kserve.predictor.maxReplicas }}
+    containers:
+      - name: skill
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+          - containerPort: {{ .Values.service.port }}
+            protocol: TCP
+        {{- with .Values.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.env }}
+        env:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+{{- end }}

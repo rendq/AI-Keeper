@@ -1,0 +1,75 @@
+apiVersion: policy.ai-keeper.io/v1alpha1
+kind: Policy
+metadata:
+  name: djsanji-crypto-enforcement
+  namespace: gov-credit-dept
+spec:
+  displayName: 等保三级 + 密评强制策略
+  description: |
+    依据《信息安全等级保护基本要求》第三级及《商用密码应用安全性评估》要求，
+    对政务信用 AI 系统实施强制安全策略。覆盖身份鉴别、访问控制、安全审计、
+    数据完整性与保密性，强制使用国密算法（SM2/SM3/SM4）。
+  effect: deny
+  priority: 5
+  subject:
+    match:
+      - kind: ServiceAccount
+        names:
+          - "*"
+      - kind: User
+        attributes:
+          department: gov-credit
+  action:
+    - invoke
+    - query
+    - export
+    - admin
+  resource:
+    match:
+      - kind: Skill
+        names:
+          - official-document-drafting
+          - policy-qa
+          - credit-assessment
+      - kind: KnowledgeBase
+        names:
+          - gov-policy-kb
+  conditions:
+    # 强制国内政务云数据驻留
+    - expression: "request.dataResidency.all(r, r.startsWith('cn-'))"
+      description: 数据不得出境，必须存储在境内政务云区域
+    # 强制国密加密传输
+    - expression: "request.transport.encryption in ['sm4-gcm', 'sm4-cbc']"
+      description: 传输必须使用国密 SM4 加密
+    # 强制审计日志
+    - expression: "request.auditLevel in ['high', 'full']"
+      description: 所有操作必须产生高等级审计日志
+    # 强制 SM2 数字签名验证
+    - expression: "request.authentication.signatureAlgorithm == 'sm2'"
+      description: 身份认证必须使用 SM2 数字签名
+    # 密评要求：密钥管理
+    - expression: "request.keyManagement.algorithm == 'sm2' && request.keyManagement.hsm == true"
+      description: 密钥必须使用 SM2 算法并存储在硬件密码机中
+  constraints:
+    maxClassification: top-secret
+    requireMfa: true
+    sessionTimeout: 15m
+    passwordPolicy:
+      minLength: 12
+      requireSpecialChar: true
+      rotationDays: 90
+  obligations:
+    audit:
+      level: full
+      includePromptHashes: true
+      retentionDays: 365
+      signatureAlgorithm: SM3
+    encryption:
+      atRest: SM4
+      inTransit: SM4-GCM
+      keyExchange: SM2
+      hashIntegrity: SM3
+    notify:
+      onViolation:
+        - channel: gov-security-center
+          template: djsanji-crypto-violation-alert

@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ES2022",
+        "moduleResolution": "bundler",
+        "lib": [
+            "ES2022"
+        ],
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "declaration": true,
+        "composite": true,
+        "incremental": true
+    },
+    "include": [],
+    "exclude": [
+        "node_modules",
+        "**/dist",
+        "**/build",
+        "**/node_modules"
+    ]
+}

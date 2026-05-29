@@ -1,0 +1,47 @@
+# buf code-gen plan for the AIP mono-repo.
+#
+# Outputs:
+#   • Go     → proto/aip/v1/*.pb.go and *_grpc.pb.go (paths=source_relative)
+#   • Python → dataplane/runtime/aik_runtime/proto/aip/v1/*_pb2{,_grpc}.py
+#   • TS     → proto/ts/aip/v1/*.ts (proto-plus, no runtime deps required)
+#
+# Local plugins live in `.local-tools/bin/` (installed via `make bootstrap-go`
+# / `make bootstrap-proto`). Remote plugins are pinned by digest via
+# `buf.build/<owner>/<plugin>:<version>`.
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/ai-keeper/ai-keeper/proto
+plugins:
+  # ---------- Go ----------
+  - local: protoc-gen-go
+    out: proto
+    opt:
+      - paths=source_relative
+  - local: protoc-gen-go-grpc
+    out: proto
+    opt:
+      - paths=source_relative
+      - require_unimplemented_servers=false
+
+  # ---------- Python ----------
+  - remote: buf.build/protocolbuffers/python:v28.2
+    out: dataplane/runtime/aik_runtime/proto
+  - remote: buf.build/grpc/python:v1.66.1
+    out: dataplane/runtime/aik_runtime/proto
+  - remote: buf.build/protocolbuffers/pyi:v28.2
+    out: dataplane/runtime/aik_runtime/proto
+
+  # ---------- TypeScript (web / aikctl client lib) ----------
+  - remote: buf.build/community/stephenh-ts-proto:v2.2.0
+    out: proto/ts
+    opt:
+      - esModuleInterop=true
+      - outputServices=grpc-js
+      - useExactTypes=false
+      - forceLong=string
+      - env=node
+inputs:
+  - directory: proto

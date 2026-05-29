@@ -1,0 +1,24 @@
+apiVersion: model.ai-keeper.io/v1alpha1
+kind: ModelRouter
+metadata:
+  name: reasoner-router
+  namespace: legal-dept
+spec:
+  displayName: Reasoner Model Router
+  alias: reasoner
+  rules:
+    - name: eu-compliance
+      when:
+        expression: "request.tenant.complianceProfile.dataResidency.exists(r, r == 'eu-west-1')"
+      endpoints:
+        - ref: model://legal-dept/gpt-4o-eu
+          weight: 100
+    - name: default-route
+      when:
+        expression: "true"
+      endpoints:
+        - ref: model://legal-dept/gpt-4o-eu
+          weight: 100
+  cache:
+    enabled: false
+  fallbackBehavior: sequential

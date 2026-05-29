@@ -1,0 +1,75 @@
+# Default values for the AIP audit-storage sub-chart.
+# Deploys ClickHouse 24.x + MinIO with Object Lock for local/kind usage.
+---
+# Toggle controlled by the parent chart (`audit-storage.enabled` at top level).
+enabled: true
+
+nameOverride: ""
+fullnameOverride: ""
+
+# --- ClickHouse 24.x ----------------------------------------------------------
+clickhouse:
+  enabled: true
+  image:
+    repository: clickhouse/clickhouse-server
+    tag: "24.8-alpine"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  httpPort: 8123
+  nativePort: 9000
+  database: aip
+  # P0/kind: no auth. Production should use a Secret reference.
+  username: default
+  password: ""
+  # TTL for audit_events rows (ISO 8601 duration-ish for readability).
+  ttlYears: 2
+  storage:
+    enabled: false
+    size: 5Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+# --- MinIO (S3-compatible Object Storage with Object Lock) --------------------
+minio:
+  enabled: true
+  image:
+    repository: minio/minio
+    tag: "RELEASE.2024-06-13T22-53-53Z"
+    pullPolicy: IfNotPresent
+  mcImage:
+    repository: minio/mc
+    tag: "RELEASE.2024-06-12T14-34-03Z"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  port: 9000
+  consolePort: 9001
+  # P0/kind credentials. Production should use a Secret reference.
+  rootUser: minioadmin
+  rootPassword: minioadmin
+  # Bucket configuration
+  bucket:
+    name: audit-events
+    # Object Lock Compliance Mode retention in days.
+    retentionDays: 365
+  storage:
+    enabled: false
+    size: 5Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Common settings
+nodeSelector: {}
+tolerations: []
+affinity: {}

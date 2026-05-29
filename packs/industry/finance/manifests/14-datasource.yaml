@@ -1,0 +1,18 @@
+apiVersion: data.ai-keeper.io/v1alpha1
+kind: DataSource
+metadata:
+  name: finance-docs-source
+  namespace: finance-dept
+spec:
+  displayName: 金融文档数据源
+  type: connector
+  connector:
+    protocol: mcp
+    endpoint: mcp://finance-docs-connector:9090
+    secretRef: ref://secret/finance-docs-credentials
+  sync:
+    schedule: "0 */4 * * *"
+    mode: incremental
+  classification: confidential
+  acl:
+    inheritFromSource: true

@@ -1,0 +1,589 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+  name: auditevents.audit.ai-keeper.io
+spec:
+  group: audit.ai-keeper.io
+  names:
+    categories:
+    - aip
+    kind: AuditEvent
+    listKind: AuditEventList
+    plural: auditevents
+    shortNames:
+    - ae
+    singular: auditevent
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.policy.decision
+      name: Decision
+      type: string
+    - jsonPath: .spec.outcome.status
+      name: Status
+      type: string
+    - jsonPath: .spec.principal.agent.name
+      name: Agent
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          AuditEvent is a structured audit record produced for every AI
+          invocation. The API surface is read-only for end users; only system
+          components may write (admission webhook in task 2.3).
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              AuditEventSpec is the AuditEvent payload. Per Requirement A1.5 the API
+              server rejects user-initiated CREATE/UPDATE/DELETE; this type still
+              declares no `status` because the AuditEvent is itself the status.
+            properties:
+              action:
+                description: Action is required.
+                properties:
+                  method:
+                    maxLength: 253
+                    type: string
+                  resource:
+                    description: |-
+                      ResourceRef is the canonical AIP URI used to reference any other resource
+                      (skills, tools, models, data, prompts, channels, connectors, memory,
+                      quota, ref, siem, policy). The accepted shape is
+                      `<scheme>://<path>[@<version>]`.
+
+                      Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                      round-trip).
+                    maxLength: 512
+                    minLength: 8
+                    pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                    type: string
+                  verb:
+                    enum:
+                    - invoke
+                    - read
+                    - write
+                    - delete
+                    - admin
+                    - list
+                    - watch
+                    type: string
+                required:
+                - resource
+                - verb
+                type: object
+              compliance:
+                description: AuditCompliance captures compliance metadata.
+                properties:
+                  dataResidency:
+                    maxLength: 64
+                    type: string
+                  holds:
+                    description: |-
+                      Holds is the legal-hold tag set. Non-empty values prevent retention
+                      GC (Requirement D4 / F22).
+                    items:
+                      type: string
+                    type: array
+                  reviewed:
+                    type: boolean
+                  reviewedAt:
+                    format: date-time
+                    type: string
+                  reviewedBy:
+                    maxLength: 253
+                    type: string
+                  tags:
+                    items:
+                      type: string
+                    type: array
+                type: object
+              cost:
+                description: AuditCost is the per-call cost.
+                properties:
+                  durationMs:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                  tokens:
+                    description: AuditCostTokens is the per-call token breakdown.
+                    properties:
+                      cached:
+                        format: int64
+                        type: integer
+                      input:
+                        format: int64
+                        type: integer
+                      output:
+                        format: int64
+                        type: integer
+                    type: object
+                  usd:
+                    description: |-
+                      MoneyAmount is the canonical wire representation of a USD amount used
+                      in CostBlock fields. We store money as a string with a constrained
+                      pattern (rather than `float64`) to keep CRD diffs bit-for-bit
+                      reproducible and to avoid the JSON-number rounding that breaks audit
+                      hashing (Requirements F4, F22).
+                    maxLength: 32
+                    pattern: ^\d+(\.\d+)?$
+                    type: string
+                type: object
+              eventHash:
+                description: |-
+                  EventHash is the canonical sha256 of the event envelope. Required
+                  for tamper detection (Requirement F22).
+                pattern: ^sha256:[a-f0-9]{64}$
+                type: string
+              guardrails:
+                description: AuditGuardrails captures guardrail outcome.
+                properties:
+                  blocked:
+                    type: boolean
+                  triggered:
+                    items:
+                      description: AuditGuardrailHit records a guardrail rule trip.
+                      properties:
+                        action:
+                          enum:
+                          - allow
+                          - mask
+                          - block
+                          - warn
+                          - escalate
+                          type: string
+                        rule:
+                          maxLength: 128
+                          type: string
+                        score:
+                          maximum: 1
+                          minimum: 0
+                          type: number
+                        stage:
+                          enum:
+                          - input
+                          - output
+                          - behavior
+                          type: string
+                      required:
+                      - rule
+                      type: object
+                    type: array
+                type: object
+              invocationId:
+                description: InvocationID is a UUID assigned by the Gateway.
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+                type: string
+              outcome:
+                description: AuditOutcome captures terminal status.
+                properties:
+                  errorCode:
+                    maxLength: 64
+                    type: string
+                  errorMessage:
+                    maxLength: 2048
+                    type: string
+                  status:
+                    enum:
+                    - success
+                    - partial
+                    - failed
+                    - timeout
+                    - blocked
+                    - cancelled
+                    type: string
+                type: object
+              policy:
+                description: AuditPolicy captures the decision.
+                properties:
+                  approvalId:
+                    maxLength: 128
+                    type: string
+                  decision:
+                    enum:
+                    - allow
+                    - deny
+                    - require_approval
+                    - error
+                    type: string
+                  matchedPolicies:
+                    items:
+                      type: string
+                    type: array
+                  obligationsApplied:
+                    items:
+                      type: string
+                    type: array
+                  reason:
+                    maxLength: 1024
+                    type: string
+                required:
+                - decision
+                type: object
+              principal:
+                description: Principal is required.
+                properties:
+                  agent:
+                    description: Agent is required.
+                    properties:
+                      name:
+                        maxLength: 253
+                        minLength: 1
+                        type: string
+                      namespace:
+                        maxLength: 253
+                        type: string
+                      version:
+                        maxLength: 64
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  channel:
+                    enum:
+                    - feishu
+                    - wecom
+                    - dingtalk
+                    - slack
+                    - teams
+                    - web
+                    - api
+                    - sdk
+                    - voice
+                    - email
+                    - internal
+                    type: string
+                  onBehalfOf:
+                    description: OnBehalfOf records the end-user id under OBO.
+                    maxLength: 253
+                    type: string
+                  serviceAccount:
+                    description: AuditPrincipalSA captures the ServiceAccount.
+                    properties:
+                      name:
+                        maxLength: 253
+                        type: string
+                      spiffeId:
+                        pattern: ^spiffe://[A-Za-z0-9._\-]+(/[A-Za-z0-9._\-]+)*$
+                        type: string
+                    type: object
+                  sourceIp:
+                    maxLength: 64
+                    type: string
+                  user:
+                    description: AuditPrincipalUser captures the human user (if any).
+                    properties:
+                      attributes:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      department:
+                        maxLength: 253
+                        type: string
+                      id:
+                        maxLength: 253
+                        type: string
+                      tenantId:
+                        maxLength: 253
+                        type: string
+                    type: object
+                  userAgent:
+                    maxLength: 512
+                    type: string
+                required:
+                - agent
+                type: object
+              rawObjectUri:
+                description: |-
+                  RawObjectURI points at the immutable S3/MinIO object containing the
+                  untruncated event body.
+                maxLength: 2048
+                type: string
+              request:
+                description: AuditRequest captures inbound IO metadata (no raw bodies).
+                properties:
+                  classification:
+                    description: |-
+                      Classification carries the data-sensitivity tag of a request, response,
+                      CRD or audit event.
+
+                      Validates: Requirements A2.5.
+                    enum:
+                    - public
+                    - internal
+                    - confidential
+                    - restricted
+                    - secret
+                    type: string
+                  inputHash:
+                    pattern: ^sha256:[a-f0-9]{64}$
+                    type: string
+                  inputRef:
+                    description: |-
+                      ResourceRef is the canonical AIP URI used to reference any other resource
+                      (skills, tools, models, data, prompts, channels, connectors, memory,
+                      quota, ref, siem, policy). The accepted shape is
+                      `<scheme>://<path>[@<version>]`.
+
+                      Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                      round-trip).
+                    maxLength: 512
+                    minLength: 8
+                    pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                    type: string
+                  language:
+                    pattern: ^[a-z]{2}(-[A-Z]{2})?$
+                    type: string
+                  redactions:
+                    description: Redactions lists detected PII type names (no values).
+                    items:
+                      type: string
+                    type: array
+                  sizeBytes:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                type: object
+              response:
+                description: AuditResponse captures outbound IO metadata.
+                properties:
+                  citations:
+                    items:
+                      description: AuditCitation describes one retrieval citation.
+                      properties:
+                        chunkId:
+                          maxLength: 128
+                          type: string
+                        score:
+                          maximum: 1
+                          minimum: 0
+                          type: number
+                        source:
+                          maxLength: 2048
+                          type: string
+                      type: object
+                    type: array
+                  classification:
+                    description: |-
+                      Classification carries the data-sensitivity tag of a request, response,
+                      CRD or audit event.
+
+                      Validates: Requirements A2.5.
+                    enum:
+                    - public
+                    - internal
+                    - confidential
+                    - restricted
+                    - secret
+                    type: string
+                  confidence:
+                    maximum: 1
+                    minimum: 0
+                    type: number
+                  outputHash:
+                    pattern: ^sha256:[a-f0-9]{64}$
+                    type: string
+                  outputRef:
+                    description: |-
+                      ResourceRef is the canonical AIP URI used to reference any other resource
+                      (skills, tools, models, data, prompts, channels, connectors, memory,
+                      quota, ref, siem, policy). The accepted shape is
+                      `<scheme>://<path>[@<version>]`.
+
+                      Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                      round-trip).
+                    maxLength: 512
+                    minLength: 8
+                    pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                    type: string
+                  sizeBytes:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                type: object
+              steps:
+                items:
+                  description: AuditStep is one entry in the agent thought-tree.
+                  properties:
+                    error:
+                      maxLength: 1024
+                      type: string
+                    index:
+                      format: int32
+                      minimum: 0
+                      type: integer
+                    latencyMs:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    model:
+                      description: |-
+                        ResourceRef is the canonical AIP URI used to reference any other resource
+                        (skills, tools, models, data, prompts, channels, connectors, memory,
+                        quota, ref, siem, policy). The accepted shape is
+                        `<scheme>://<path>[@<version>]`.
+
+                        Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                        round-trip).
+                      maxLength: 512
+                      minLength: 8
+                      pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                      type: string
+                    tokensIn:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    tokensOut:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    tool:
+                      description: |-
+                        ResourceRef is the canonical AIP URI used to reference any other resource
+                        (skills, tools, models, data, prompts, channels, connectors, memory,
+                        quota, ref, siem, policy). The accepted shape is
+                        `<scheme>://<path>[@<version>]`.
+
+                        Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                        round-trip).
+                      maxLength: 512
+                      minLength: 8
+                      pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                      type: string
+                    type:
+                      enum:
+                      - thought
+                      - tool_call
+                      - model_call
+                      - observation
+                      - final
+                      type: string
+                  type: object
+                type: array
+              timestamp:
+                description: Timestamp the event was emitted.
+                format: date-time
+                type: string
+              trace:
+                description: AuditEventTrace captures OTel correlation ids.
+                properties:
+                  parentSpanId:
+                    maxLength: 32
+                    type: string
+                  spanId:
+                    maxLength: 32
+                    type: string
+                  traceId:
+                    maxLength: 64
+                    type: string
+                type: object
+            required:
+            - action
+            - invocationId
+            - principal
+            - timestamp
+            type: object
+          status:
+            description: |-
+              AuditEventStatus is intentionally minimal. AuditEvent is itself an
+              audit record so the spec block carries the data; status is reserved
+              for system bookkeeping (e.g. forwarding state, retention windows)
+              once task 12.3 lands the read-only aggregated API server.
+            properties:
+              conditions:
+                description: |-
+                  Conditions track the lifecycle of the audit record (e.g.
+                  `PersistedToS3`, `ForwardedToSIEM`).
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the .metadata.generation last observed by
+                  the audit pipeline.
+                format: int64
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

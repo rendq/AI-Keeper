@@ -1,0 +1,33 @@
+apiVersion: model.ai-keeper.io/v1alpha1
+kind: ModelEndpoint
+metadata:
+  name: gpt-4o-eu
+  namespace: legal-dept
+spec:
+  displayName: GPT-4o (EU Region)
+  provider: openai
+  model: gpt-4o
+  endpoint: https://eu-west-1.api.openai.com/v1
+  region: eu-west-1
+  secretRef: ref://secret/openai-eu-api-key
+  compliance:
+    standards:
+      - GDPR
+    dataResidency: eu-west-1
+    privacy:
+      dpaSigned: true
+      dataRetention: none
+  cost:
+    input: 2.50
+    output: 10.00
+    cached: 1.25
+    currency: USD
+    unit: per_million_tokens
+  limits:
+    tpm: 800000
+    rpm: 5000
+  fallback:
+    - ref: model://legal-dept/gpt-4o-backup
+  health:
+    probeInterval: 30s
+    timeout: 5s

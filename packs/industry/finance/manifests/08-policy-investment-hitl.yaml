@@ -1,0 +1,55 @@
+apiVersion: policy.ai-keeper.io/v1alpha1
+kind: Policy
+metadata:
+  name: investment-hitl
+  namespace: finance-dept
+spec:
+  displayName: 投研人审策略
+  description: |
+    投研分析输出必须经过人工审核后方可对外发布。
+    确保 AI 生成的投研报告不会未经审核直接触达客户或外部系统。
+  effect: allow
+  priority: 50
+  subject:
+    match:
+      - kind: Skill
+        names:
+          - investment-research
+      - kind: User
+        attributes:
+          role: research-analyst
+  action:
+    - invoke
+    - publish
+  resource:
+    match:
+      - kind: Skill
+        names:
+          - investment-research
+  conditions:
+    # 对外发布必须经过人审
+    - expression: "request.action == 'publish' ? request.approval.status == 'approved' : true"
+      description: 投研报告对外发布前必须获得人工审核批准
+    # 审核人必须具备研究员资格
+    - expression: "request.action == 'publish' ? request.approval.approver.hasRole('senior-analyst') : true"
+      description: 审核人必须具备高级研究员资格
+  constraints:
+    humanInTheLoop:
+      required: true
+      approvalRoles:
+        - senior-analyst
+        - compliance-officer
+      timeout: 24h
+      escalation:
+        after: 12h
+        to: compliance-officer
+  obligations:
+    audit:
+      level: high
+      includePromptHashes: true
+    watermark:
+      enabled: true
+      mode: output
+    riskDisclosure:
+      required: true
+      template: investment-risk-disclaimer

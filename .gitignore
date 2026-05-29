@@ -1,0 +1,78 @@
+# Build / dist
+bin/
+dist/
+build/
+out/
+target/
+coverage/
+*.test
+*.out
+*.prof
+
+# Compiled binaries
+manager
+aip-pdp
+aip-marketplace
+aip-airgap-pack
+mock-llm
+mock-feishu
+mock-idp
+
+# Large generated files
+*.pdf
+
+# Go
+vendor/
+*.exe
+*.exe~
+*.so
+*.dylib
+*.dll
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+
+# Node / JS
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+*.log
+
+# Tooling caches
+.cache/
+.tmp/
+tmp/
+.local-tools/
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets / env
+.env
+.env.local
+*.pem
+*.key
+
+# Generated (kept out of VCS — `make proto` regenerates them).
+zz_generated.*.go
+proto/aip/**/*.pb.go
+proto/aip/**/*_grpc.pb.go
+proto/ts/**
+dataplane/**/aip_runtime/proto/**
+!proto/aip/v1/*.proto

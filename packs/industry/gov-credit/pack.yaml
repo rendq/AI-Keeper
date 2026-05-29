@@ -1,0 +1,96 @@
+apiVersion: pack.ai-keeper.io/v1alpha1
+kind: Pack
+metadata:
+  name: industry/gov-credit
+spec:
+  version: "1.0.0"
+  displayName: 政务信用行业 AI 平台 Pack（信创适配）
+  description: |
+    面向政务信用行业的 AIP 行业包，包含公文起草、政策问答、信用评估等核心技能，
+    配套等保三级+密评、信创模型白名单、国密加密策略等合规策略。
+    全面适配信创技术栈：麒麟 OS、鲲鹏/海光 CPU、达梦/OceanBase 数据库，
+    所有加密通信强制使用国密算法（SM2/SM3/SM4）。
+  category: industry
+  industry: gov-credit
+  maintainer: aip-team@example.com
+  license: Apache-2.0
+  keywords:
+    - government
+    - credit
+    - xinchuang
+    - guomi
+    - sm2
+    - sm4
+    - kylin
+    - kunpeng
+  requires:
+    - name: core/base
+      version: ">=1.0.0"
+    - name: core/policy-engine
+      version: ">=1.0.0"
+    - name: infra/xinchuang-stack
+      version: ">=1.0.0"
+  platforms:
+    os:
+      - kylin-v10
+      - uos-v20
+    arch:
+      - arm64
+      - x86_64
+    cpu:
+      - kunpeng-920
+      - hygon-c86-7xxx
+    database:
+      - dameng-v8
+      - oceanbase-v4
+  valuesSchema:
+    type: object
+    properties:
+      tenant:
+        type: object
+        properties:
+          name:
+            type: string
+            default: gov-credit-dept
+          adminEmail:
+            type: string
+      model:
+        type: object
+        properties:
+          baichuanEndpoint:
+            type: string
+            default: https://baichuan-xinchuang.internal:8443/v1
+          chatglmEndpoint:
+            type: string
+            default: https://chatglm-xinchuang.internal:8443/v1
+      compliance:
+        type: object
+        properties:
+          djsanjiEnabled:
+            type: boolean
+            default: true
+          guomiEnforced:
+            type: boolean
+            default: true
+          dataResidency:
+            type: array
+            items:
+              type: string
+            default:
+              - cn-beijing
+              - cn-gov-cloud
+      xinchuang:
+        type: object
+        properties:
+          osFamily:
+            type: string
+            enum: [kylin, uos]
+            default: kylin
+          cpuArch:
+            type: string
+            enum: [kunpeng-arm64, hygon-x86]
+            default: kunpeng-arm64
+          database:
+            type: string
+            enum: [dameng, oceanbase]
+            default: dameng

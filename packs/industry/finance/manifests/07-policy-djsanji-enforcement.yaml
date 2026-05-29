@@ -1,0 +1,61 @@
+apiVersion: policy.ai-keeper.io/v1alpha1
+kind: Policy
+metadata:
+  name: djsanji-enforcement
+  namespace: finance-dept
+spec:
+  displayName: 等保三级强制策略
+  description: |
+    依据《信息安全等级保护基本要求》第三级，对金融 AI 系统实施强制安全策略。
+    覆盖身份鉴别、访问控制、安全审计、数据完整性与保密性等要求。
+  effect: deny
+  priority: 10
+  subject:
+    match:
+      - kind: ServiceAccount
+        names:
+          - "*"
+      - kind: User
+        attributes:
+          department: finance
+  action:
+    - invoke
+    - query
+    - export
+  resource:
+    match:
+      - kind: Skill
+        names:
+          - compliance-review
+          - investment-research
+          - aml-detection
+          - due-diligence-summary
+      - kind: KnowledgeBase
+        names:
+          - finance-regulations-kb
+  conditions:
+    # 强制国内数据驻留
+    - expression: "request.dataResidency.all(r, r.startsWith('cn-'))"
+      description: 数据不得出境，必须存储在境内区域
+    # 强制审计日志
+    - expression: "request.auditLevel != 'none'"
+      description: 所有操作必须产生审计日志
+    # 强制加密传输
+    - expression: "request.transport.encryption == 'tls1.3' || request.transport.encryption == 'sm4'"
+      description: 传输必须使用 TLS 1.3 或国密 SM4
+  constraints:
+    maxClassification: secret
+    requireMfa: true
+    sessionTimeout: 30m
+  obligations:
+    audit:
+      level: high
+      includePromptHashes: true
+      retentionDays: 180
+    encryption:
+      atRest: sm4
+      inTransit: tls1.3
+    notify:
+      onViolation:
+        - channel: dingtalk
+          template: djsanji-violation-alert

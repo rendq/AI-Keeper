@@ -1,0 +1,52 @@
+apiVersion: policy.ai-keeper.io/v1alpha1
+kind: Policy
+metadata:
+  name: patient-id-acl
+  namespace: healthcare-dept
+spec:
+  displayName: 患者 ID 访问控制策略
+  description: |
+    基于患者-提供者关系（Patient-Provider Relationship）的细粒度访问控制。
+    仅允许有直接护理关系的医护人员访问患者数据，实施 Break-the-Glass 紧急覆盖机制。
+  effect: deny
+  priority: 50
+  subject:
+    match:
+      - kind: ServiceAccount
+        names:
+          - healthcare-sa
+      - kind: User
+        attributes:
+          department: healthcare
+  action:
+    - invoke
+    - query
+  resource:
+    match:
+      - kind: Skill
+        names:
+          - medical-record-summary
+          - drug-interaction-check
+  conditions:
+    # 必须有患者-医护关系
+    - expression: "acl.hasRelationship(request.patientId, principal.id, 'care-team')"
+      description: Requester must be on the patient's care team
+    # Break-the-Glass 紧急例外
+    - expression: "!request.breakTheGlass || (request.breakTheGlass && request.breakTheGlassReason != '')"
+      description: Emergency override requires documented reason (Break-the-Glass)
+  constraints:
+    maxClassification: restricted
+    requirePatientConsent: true
+  obligations:
+    audit:
+      level: high
+      includePromptHashes: true
+      retentionDays: 2190
+      includePatientId: true
+    notify:
+      onMatch:
+        - channel: ehr-audit-log
+          template: patient-access-log
+      onViolation:
+        - channel: pagerduty
+          template: unauthorized-phi-access

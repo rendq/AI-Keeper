@@ -1,0 +1,36 @@
+{{/*
+ConversionWebhook placeholder (task 2.4).
+
+P0 ships only `v1alpha1` (every CRD is marked
+`+kubebuilder:storageversion`), so each CRD keeps the kubebuilder
+default `spec.conversion.strategy=None` and the API server never
+dials the webhook for actual conversion. The Go handler under
+`internal/conversion/` is still registered (echo identity) so
+end-to-end smoke tests can exercise the route.
+
+P1 will flip `spec.conversion.strategy=Webhook` *inside each CRD*
+(emitted by `controller-gen` from per-Kind `+kubebuilder:webhook:`
+markers) — there is **no separate ConversionWebhookConfiguration
+resource** in Kubernetes (unlike Validating / MutatingWebhook).
+This file is therefore a placeholder that documents the wiring
+without adding any resource.
+
+When P1 lands, the CRD-embedded conversion block will look like:
+
+  spec:
+    conversion:
+      strategy: Webhook
+      webhook:
+        conversionReviewVersions: ["v1"]
+        clientConfig:
+          service:
+            name: {{ .Values.webhook.serviceName | default "aip-manager-webhook" }}
+            namespace: {{ .Values.webhook.namespace | default "aik-system" }}
+            path: /convert
+            port: {{ .Values.webhook.servicePort | default 443 }}
+          # CA bundle injected by cert-manager via
+          # `cert-manager.io/inject-ca-from` annotation on the CRD.
+
+The injection annotation pattern matches `webhook-validating-config.yaml`.
+*/}}
+{{- /* placeholder — see comment block above */ -}}

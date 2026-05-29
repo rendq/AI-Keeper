@@ -1,0 +1,62 @@
+apiVersion: pack.ai-keeper.io/v1alpha1
+kind: Pack
+metadata:
+  name: industry/healthcare
+spec:
+  version: "1.0.0"
+  displayName: 医疗行业 AI 平台 Pack
+  description: |
+    面向医疗行业的 AIP 行业包，包含病历摘要、医学问答、药物交互检查等核心技能，
+    配套 HIPAA 合规策略、患者 ID ACL、PHI 脱敏等安全策略，以及 on-premise vLLM/TGI 私有化部署配置。
+  category: industry
+  industry: healthcare
+  maintainer: aip-team@example.com
+  license: Apache-2.0
+  keywords:
+    - healthcare
+    - medical
+    - hipaa
+    - phi
+    - clinical
+    - drug-interaction
+  requires:
+    - name: core/base
+      version: ">=1.0.0"
+    - name: core/policy-engine
+      version: ">=1.0.0"
+  valuesSchema:
+    type: object
+    properties:
+      tenant:
+        type: object
+        properties:
+          name:
+            type: string
+            default: healthcare-dept
+          adminEmail:
+            type: string
+      model:
+        type: object
+        properties:
+          vllmEndpoint:
+            type: string
+            default: https://vllm-medical.internal:8000/v1
+          tgiEndpoint:
+            type: string
+            default: https://tgi-medical.internal:8080/v1
+      compliance:
+        type: object
+        properties:
+          hipaaEnabled:
+            type: boolean
+            default: true
+          phiRedactionEnabled:
+            type: boolean
+            default: true
+          dataResidency:
+            type: array
+            items:
+              type: string
+            default:
+              - us-east-1
+              - us-west-2

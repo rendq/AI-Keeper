@@ -1,0 +1,30 @@
+apiVersion: core.ai-keeper.io/v1alpha1
+kind: Tenant
+metadata:
+  name: gov-credit-dept
+spec:
+  displayName: 政务信用部门
+  complianceProfile:
+    standards:
+      - DJCP-L3
+      - XINCHUANG
+    dataResidency:
+      - cn-beijing
+      - cn-gov-cloud
+    encryption:
+      algorithm: SM4
+      keyManagement: SM2
+      hashFunction: SM3
+  modelAllowlist:
+    - model://baichuan-xinchuang
+    - model://chatglm-xinchuang
+  deployment:
+    regions:
+      - cn-beijing
+      - cn-gov-cloud
+    platforms:
+      os: kylin-v10
+      arch: arm64
+      cpu: kunpeng-920
+  admin:
+    email: gov-credit-admin@example.gov.cn

@@ -1,0 +1,117 @@
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Skill
+metadata:
+  name: drug-interaction-check
+  namespace: healthcare-dept
+spec:
+  version: "1.0.0"
+  stability: stable
+  interface:
+    input:
+      schema:
+        type: object
+        required:
+          - medications
+        properties:
+          medications:
+            type: array
+            items:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: 药物名称（通用名或商品名）
+                rxcui:
+                  type: string
+                  description: RxNorm CUI 编码
+                dosage:
+                  type: string
+                route:
+                  type: string
+                  enum: [oral, iv, im, topical, inhaled]
+            minItems: 2
+            description: 待检查药物列表（至少 2 种）
+          patientId:
+            type: string
+            description: 患者 ID（可选，用于查询既往用药史）
+          patientFactors:
+            type: object
+            properties:
+              age:
+                type: integer
+              weight:
+                type: number
+              renalFunction:
+                type: string
+                enum: [normal, mild-impairment, moderate-impairment, severe-impairment]
+              hepaticFunction:
+                type: string
+                enum: [normal, mild-impairment, moderate-impairment, severe-impairment]
+    output:
+      schema:
+        type: object
+        required:
+          - interactions
+          - overallRisk
+        properties:
+          interactions:
+            type: array
+            items:
+              type: object
+              properties:
+                drugPair:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 2
+                  maxItems: 2
+                severity:
+                  type: string
+                  enum: [contraindicated, major, moderate, minor]
+                mechanism:
+                  type: string
+                clinicalEffect:
+                  type: string
+                recommendation:
+                  type: string
+                evidenceLevel:
+                  type: string
+          overallRisk:
+            type: string
+            enum: [critical, high, moderate, low, none]
+          recommendations:
+            type: array
+            items:
+              type: string
+  implementation:
+    runtime: python
+    image: registry.example.com/aip/skills/drug-interaction-check:1.0.0
+    entrypoint: drug_interaction:check
+    requires:
+      models:
+        - alias: reasoner
+          versionConstraint: ">=2024.01"
+      dataSources:
+        - ref: data://healthcare-dept/medical-guidelines-kb
+  governance:
+    classification: confidential
+    pii:
+      onInput: detect_and_mask
+      onOutput: detect_and_mask
+      patternsRef: ref://patterns/phi-identifiers
+  cost:
+    budget: ref://budget/healthcare-dept-monthly
+  slo:
+    p95LatencyMs: 3000
+    successRate: 0.99
+  evaluation:
+    evalSet: ref://eval/diagnosis-accuracy-benchmark
+    schedule: "0 2 * * 1"
+    gates:
+      promoteToStable:
+        minScore: 0.90
+        metrics:
+          - accuracy
+          - recall

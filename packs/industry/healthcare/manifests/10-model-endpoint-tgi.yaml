@@ -1,0 +1,53 @@
+apiVersion: model.ai-keeper.io/v1alpha1
+kind: ModelEndpoint
+metadata:
+  name: tgi-medical
+  namespace: healthcare-dept
+spec:
+  displayName: TGI Medical (On-Premise)
+  provider: on-premise
+  model: medical-mixtral-8x7b
+  endpoint: https://tgi-medical.internal:8080/v1
+  region: us-west-2
+  secretRef: ref://secret/tgi-medical-key
+  deployment:
+    type: on-premise
+    runtime: tgi
+    config:
+      numShard: 2
+      maxInputLength: 16384
+      maxTotalTokens: 32768
+      quantize: gptq
+      dtype: float16
+    resources:
+      gpu:
+        type: A100
+        count: 2
+      memory: 160Gi
+    replicas: 2
+  compliance:
+    standards:
+      - HIPAA
+      - HITECH
+    dataResidency: us-west-2
+    privacy:
+      dpaSigned: true
+      dataRetention: none
+      noExternalTransmission: true
+  cost:
+    input: 0.00
+    output: 0.00
+    cached: 0.00
+    currency: USD
+    unit: per_million_tokens
+    infrastructure:
+      monthly: 8000.00
+      currency: USD
+  limits:
+    tpm: 300000
+    rpm: 1500
+  fallback:
+    - ref: model://healthcare-dept/vllm-medical
+  health:
+    probeInterval: 15s
+    timeout: 5s

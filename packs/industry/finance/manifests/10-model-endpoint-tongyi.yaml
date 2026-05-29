@@ -1,0 +1,33 @@
+apiVersion: model.ai-keeper.io/v1alpha1
+kind: ModelEndpoint
+metadata:
+  name: tongyi-qwen
+  namespace: finance-dept
+spec:
+  displayName: 通义千问 (Qwen-Max)
+  provider: alibaba
+  model: qwen-max
+  endpoint: https://dashscope.aliyuncs.com/compatible-mode/v1
+  region: cn-shanghai
+  secretRef: ref://secret/tongyi-api-key
+  compliance:
+    standards:
+      - DJCP-L3
+    dataResidency: cn-shanghai
+    privacy:
+      dpaSigned: true
+      dataRetention: none
+  cost:
+    input: 20.00
+    output: 60.00
+    cached: 10.00
+    currency: CNY
+    unit: per_million_tokens
+  limits:
+    tpm: 500000
+    rpm: 3000
+  fallback:
+    - ref: model://finance-dept/baichuan-private
+  health:
+    probeInterval: 30s
+    timeout: 5s

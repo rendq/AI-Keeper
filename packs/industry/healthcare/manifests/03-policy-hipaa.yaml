@@ -1,0 +1,82 @@
+apiVersion: policy.ai-keeper.io/v1alpha1
+kind: Policy
+metadata:
+  name: hipaa-data-protection
+  namespace: healthcare-dept
+  labels:
+    ai-keeper.io/industry: healthcare
+    ai-keeper.io/compliance: hipaa
+spec:
+  displayName: HIPAA 患者数据保护策略
+  description: |
+    严格保护 PHI（Protected Health Information），所有患者标识信息
+    在传输和处理过程中必须脱敏；仅授权医护人员可访问完整记录。
+  effect: deny
+  priority: 100
+  subject:
+    roles:
+      - clinical-staff
+      - researcher
+    excludeRoles:
+      - attending-physician
+      - hipaa-officer
+  resource:
+    kinds:
+      - KnowledgeBase
+      - DataSource
+    classifications:
+      - restricted
+      - secret
+  conditions:
+    - expression: "!principal.hasRole('attending-physician') && resource.labels['phi'] == 'true'"
+    - expression: "!request.context.hasConsent('data-access')"
+  constraints:
+    maxClassification: confidential
+  obligations:
+    audit:
+      level: high
+      includePromptHashes: true
+    redact:
+      patternsRef: ref://patterns/healthcare-phi
+      fields:
+        - patientId
+        - medicalRecordNumber
+        - socialSecurityNumber
+        - dateOfBirth
+        - address
+    watermark:
+      enabled: true
+      mode: invisible
+    notify:
+      onMatch:
+        - channel: api
+          template: hipaa-violation-alert
+---
+apiVersion: policy.ai-keeper.io/v1alpha1
+kind: Policy
+metadata:
+  name: hipaa-minimum-necessary
+  namespace: healthcare-dept
+  labels:
+    ai-keeper.io/industry: healthcare
+    ai-keeper.io/compliance: hipaa
+spec:
+  displayName: HIPAA 最小必要原则策略
+  description: |
+    实施 HIPAA 最小必要原则：仅允许访问完成当前任务所需的最少 PHI 数据，
+    研究人员仅可访问去标识化数据集。
+  effect: deny
+  priority: 95
+  subject:
+    roles:
+      - researcher
+  resource:
+    kinds:
+      - KnowledgeBase
+    labels:
+      phi: "true"
+      de-identified: "false"
+  conditions:
+    - expression: "principal.hasRole('researcher') && !resource.labels['de-identified']"
+  constraints:
+    maxClassification: internal

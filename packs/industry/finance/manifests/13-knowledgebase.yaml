@@ -1,0 +1,33 @@
+apiVersion: data.ai-keeper.io/v1alpha1
+kind: KnowledgeBase
+metadata:
+  name: finance-regulations-kb
+  namespace: finance-dept
+spec:
+  displayName: 金融法规与制度知识库
+  sources:
+    - ref: data://finance-dept/finance-docs-source
+      sync:
+        schedule: "0 */4 * * *"
+  pipeline:
+    chunking:
+      strategy: semantic
+      maxTokens: 512
+      overlap: 64
+    embedding:
+      ref: model://bge-large-zh-v1.5
+      dimensions: 1024
+    enrichment:
+      - pii_tagging
+      - classification_inheritance
+      - entity_extraction
+      - regulation_linking
+  retrieval:
+    topK: 15
+    reranker:
+      enabled: true
+      model: ref://model/bge-reranker-v2-m3
+  acl:
+    mode: pre_filter
+    enforcement: pre_filter
+  classification: confidential

@@ -1,0 +1,13 @@
+apiVersion: v2
+name: skill-runtime
+description: AIP Skill Runtime — Knative Serving container template for deploying skills
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - aip
+  - skill
+  - knative
+  - kserve
+maintainers:
+  - name: AIP Team

@@ -1,0 +1,130 @@
+{{- if .Values.clickhouse.enabled }}
+# ClickHouse 24.x — ConfigMap with init SQL for aip.audit_events table
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "audit-storage.fullname" . }}-clickhouse-init
+  labels:
+    {{- include "audit-storage.clickhouse.labels" . | nindent 4 }}
+data:
+  init-db.sql: |
+    CREATE DATABASE IF NOT EXISTS {{ .Values.clickhouse.database }};
+
+    CREATE TABLE IF NOT EXISTS {{ .Values.clickhouse.database }}.audit_events (
+      name String,
+      namespace String,
+      tenant_id String,
+      invocation_id String,
+      occurred_at DateTime64(3),
+      agent_name String,
+      decision String,
+      outcome_status String,
+      event_hash String,
+      spec_json String,
+      labels Map(String, String)
+    ) ENGINE = MergeTree()
+    ORDER BY (tenant_id, occurred_at)
+    TTL toDateTime(occurred_at) + INTERVAL {{ .Values.clickhouse.ttlYears }} YEAR;
+---
+# ClickHouse StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "audit-storage.fullname" . }}-clickhouse
+  labels:
+    {{- include "audit-storage.clickhouse.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "audit-storage.fullname" . }}-clickhouse
+  replicas: {{ .Values.clickhouse.replicas }}
+  selector:
+    matchLabels:
+      {{- include "audit-storage.clickhouse.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "audit-storage.clickhouse.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: clickhouse
+          image: "{{ .Values.clickhouse.image.repository }}:{{ .Values.clickhouse.image.tag }}"
+          imagePullPolicy: {{ .Values.clickhouse.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.clickhouse.httpPort }}
+              protocol: TCP
+            - name: native
+              containerPort: {{ .Values.clickhouse.nativePort }}
+              protocol: TCP
+          volumeMounts:
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d
+            {{- if .Values.clickhouse.storage.enabled }}
+            - name: data
+              mountPath: /var/lib/clickhouse
+            {{- end }}
+          resources:
+            {{- toYaml .Values.clickhouse.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: init-sql
+          configMap:
+            name: {{ include "audit-storage.fullname" . }}-clickhouse-init
+  {{- if .Values.clickhouse.storage.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.clickhouse.storage.storageClass }}
+        storageClassName: {{ .Values.clickhouse.storage.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.clickhouse.storage.size }}
+  {{- end }}
+---
+# ClickHouse Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "audit-storage.fullname" . }}-clickhouse
+  labels:
+    {{- include "audit-storage.clickhouse.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ .Values.clickhouse.httpPort }}
+      targetPort: http
+      protocol: TCP
+    - name: native
+      port: {{ .Values.clickhouse.nativePort }}
+      targetPort: native
+      protocol: TCP
+  selector:
+    {{- include "audit-storage.clickhouse.selectorLabels" . | nindent 4 }}
+{{- end }}

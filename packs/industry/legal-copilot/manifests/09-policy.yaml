@@ -1,0 +1,51 @@
+apiVersion: policy.ai-keeper.io/v1alpha1
+kind: Policy
+metadata:
+  name: legal-acl
+  namespace: legal-dept
+spec:
+  displayName: Legal Department Access Control
+  description: Controls access to legal copilot and confidential legal documents
+  effect: allow
+  priority: 100
+  subject:
+    match:
+      - kind: User
+        attributes:
+          department: legal
+      - kind: User
+        attributes:
+          role: legal-counsel
+      - kind: ServiceAccount
+        names:
+          - legal-copilot-sa
+  action:
+    - invoke
+    - query
+  resource:
+    match:
+      - kind: Agent
+        names:
+          - legal-copilot
+      - kind: KnowledgeBase
+        names:
+          - legal-kb
+      - kind: Skill
+        names:
+          - contract-review
+  conditions:
+    - expression: "request.time.getHours() >= 6 && request.time.getHours() <= 22"
+      description: Allow access only during business hours (6am-10pm)
+  constraints:
+    maxClassification: confidential
+  obligations:
+    audit:
+      level: high
+      includePromptHashes: true
+    watermark:
+      enabled: true
+      mode: both
+    notify:
+      onMatch:
+        - channel: feishu
+          template: legal-access-notification

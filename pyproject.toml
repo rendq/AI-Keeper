@@ -1,0 +1,90 @@
+# AIP Python workspace — managed with uv (https://docs.astral.sh/uv/)
+#
+# Houses Skill Runtime (dataplane/skillruntime), Agent Runtime
+# (dataplane/runtime), Eval Runner (internal/eval), reference packs
+# (packs/industry/...), and shared Python tooling.
+
+[project]
+name = "aip"
+version = "0.0.0"
+description = "AI Platform (AIP) — Python data-plane services and reference packs"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11,<3.13"
+authors = [{ name = "The AIP Authors" }]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.6.0",
+  "mypy>=1.10.0",
+  "pytest>=8.0.0",
+  "pytest-asyncio>=0.23.0",
+  "pytest-cov>=5.0.0",
+  "hypothesis>=6.100.0",
+  "yamllint>=1.35.0",
+  "pre-commit>=3.7.0",
+]
+runtime = [
+  # Filled in by task 8.x (Agent Runtime) — kept empty here so `uv sync` stays light.
+]
+skillruntime = [
+  "grpcio>=1.60.0",
+  "jsonschema>=4.21.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+  "ruff>=0.6.0",
+  "mypy>=1.10.0",
+  "pytest>=8.0.0",
+  "pytest-asyncio>=0.23.0",
+  "pytest-cov>=5.0.0",
+  "hypothesis>=6.100.0",
+  "yamllint>=1.35.0",
+  "pre-commit>=3.7.0",
+]
+
+[tool.uv.workspace]
+# Sub-packages will register here as they land (Skill Runtime, Agent Runtime,
+# reference packs). Empty for the P0 1.1 skeleton.
+members = []
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+  "**/zz_generated*",
+  "proto/**/*_pb2*.py",
+  "proto/**/*_pb2*.pyi",
+  "**/aik_runtime/proto/**",
+]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes
+  "I",   # isort
+  "B",   # flake8-bugbear
+  "UP",  # pyupgrade
+  "ASYNC",
+  "S",   # flake8-bandit (security)
+  "RUF",
+]
+ignore = [
+  "S101", # allow `assert` in tests
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "S105", "S106"]
+"**/test_*.py" = ["S101", "S105", "S106"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers"
+asyncio_mode = "auto"
+pythonpath = ["."]

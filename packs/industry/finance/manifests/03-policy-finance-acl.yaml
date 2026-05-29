@@ -1,0 +1,73 @@
+apiVersion: policy.ai-keeper.io/v1alpha1
+kind: Policy
+metadata:
+  name: finance-data-protection
+  namespace: finance-dept
+  labels:
+    ai-keeper.io/industry: finance
+    ai-keeper.io/compliance: sox-pci-dss
+spec:
+  displayName: 金融数据保护策略
+  description: |
+    强制金融数据分类保护：交易数据、客户 PII、内控审计记录
+    需经合规审查后方可访问；PCI-DSS 卡号数据全程脱敏。
+  effect: deny
+  priority: 100
+  subject:
+    roles:
+      - finance-analyst
+      - compliance-officer
+    excludeRoles:
+      - finance-admin
+  resource:
+    kinds:
+      - KnowledgeBase
+      - DataSource
+    classifications:
+      - restricted
+      - secret
+  conditions:
+    - expression: "!principal.hasRole('compliance-officer') && resource.classification == 'secret'"
+    - expression: "request.time.getHours() < 8 || request.time.getHours() > 20"
+  constraints:
+    maxClassification: confidential
+  obligations:
+    audit:
+      level: high
+      includePromptHashes: true
+    redact:
+      patternsRef: ref://patterns/finance-pii
+      fields:
+        - cardNumber
+        - accountNumber
+        - ssn
+    watermark:
+      enabled: true
+      mode: both
+    notify:
+      onMatch:
+        - channel: feishu
+          template: compliance-alert
+---
+apiVersion: policy.ai-keeper.io/v1alpha1
+kind: Policy
+metadata:
+  name: finance-budget-enforcement
+  namespace: finance-dept
+  labels:
+    ai-keeper.io/industry: finance
+spec:
+  displayName: 金融预算强制策略
+  description: 强制每个 Agent 会话预算上限，防止异常调用导致成本失控。
+  effect: deny
+  priority: 90
+  subject:
+    kinds:
+      - Agent
+  resource:
+    kinds:
+      - ModelEndpoint
+  conditions:
+    - expression: "budget.current.usd >= budget.limits.usd"
+  constraints:
+    maxTokensPerCall: 8192

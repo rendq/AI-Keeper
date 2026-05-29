@@ -1,0 +1,21 @@
+apiVersion: data.ai-keeper.io/v1alpha1
+kind: DataSource
+metadata:
+  name: gov-docs-source
+  namespace: gov-credit-dept
+spec:
+  displayName: 政务公文与政策数据源
+  type: connector
+  connector:
+    protocol: mcp
+    endpoint: mcp://gov-docs-connector:9090
+    secretRef: ref://secret/gov-docs-credentials
+    encryption:
+      inTransit: SM4-GCM
+      authentication: SM2
+  sync:
+    schedule: "0 */6 * * *"
+    mode: incremental
+  classification: secret
+  acl:
+    inheritFromSource: true

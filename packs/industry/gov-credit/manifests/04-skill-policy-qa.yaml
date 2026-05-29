@@ -1,0 +1,73 @@
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Skill
+metadata:
+  name: policy-qa
+  namespace: gov-credit-dept
+spec:
+  version: "1.0.0"
+  stability: stable
+  interface:
+    input:
+      schema:
+        type: object
+        required:
+          - question
+        properties:
+          question:
+            type: string
+            description: 政策咨询问题
+          policyDomain:
+            type: string
+            enum: [credit, tax, social-security, housing, business]
+            description: 政策领域（信用/税务/社保/住房/工商）
+          region:
+            type: string
+            description: 适用地区
+    output:
+      schema:
+        type: object
+        required:
+          - answer
+          - sources
+        properties:
+          answer:
+            type: string
+            description: 政策解答
+          sources:
+            type: array
+            items:
+              type: object
+              properties:
+                title:
+                  type: string
+                documentId:
+                  type: string
+                section:
+                  type: string
+                publishDate:
+                  type: string
+          confidence:
+            type: number
+            minimum: 0
+            maximum: 1
+  implementation:
+    runtime: python
+    image: registry.xinchuang.gov.cn/aip/skills/policy-qa:1.0.0-kylin
+    entrypoint: policy_qa:answer
+    requires:
+      models:
+        - alias: reasoner
+          versionConstraint: ">=2024.01"
+      dataSources:
+        - ref: data://gov-credit-dept/gov-policy-kb
+  governance:
+    classification: internal
+    pii:
+      onInput: detect_and_mask
+      onOutput: detect_and_block
+      patternsRef: ref://patterns/gov-pii
+  cost:
+    budget: ref://budget/gov-credit-dept-monthly
+  slo:
+    p95LatencyMs: 5000
+    successRate: 0.97

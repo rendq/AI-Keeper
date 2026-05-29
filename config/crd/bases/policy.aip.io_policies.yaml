@@ -1,0 +1,812 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+  name: policies.policy.ai-keeper.io
+spec:
+  group: policy.ai-keeper.io
+  names:
+    categories:
+    - aip
+    kind: Policy
+    listKind: PolicyList
+    plural: policies
+    shortNames:
+    - pol
+    singular: policy
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.effect
+      name: Effect
+      type: string
+    - jsonPath: .spec.priority
+      name: Priority
+      type: integer
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Policy is the ABAC + Obligations declarative authorization rule.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: PolicySpec is the desired state of a Policy.
+            properties:
+              action:
+                description: Action describes verbs and resources.
+                properties:
+                  resources:
+                    description: PolicyActionResources is the action's resource side.
+                    properties:
+                      anyOf:
+                        items:
+                          description: ResourceSelector is one entry in `action.resources.anyOf`.
+                          properties:
+                            kind:
+                              enum:
+                              - Skill
+                              - Agent
+                              - Tool
+                              - ModelEndpoint
+                              - DataSource
+                              - KnowledgeBase
+                              - Channel
+                              - Any
+                              type: string
+                            match:
+                              description: ResourceMatch matches resources by name
+                                / labels / classification.
+                              properties:
+                                classification:
+                                  description: Classification is a comparison expression
+                                    like '<= confidential'.
+                                  maxLength: 64
+                                  type: string
+                                labels:
+                                  additionalProperties:
+                                    type: string
+                                  type: object
+                                name:
+                                  maxLength: 253
+                                  type: string
+                                namespace:
+                                  maxLength: 253
+                                  type: string
+                                ref:
+                                  description: |-
+                                    ResourceRef is the canonical AIP URI used to reference any other resource
+                                    (skills, tools, models, data, prompts, channels, connectors, memory,
+                                    quota, ref, siem, policy). The accepted shape is
+                                    `<scheme>://<path>[@<version>]`.
+
+                                    Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                                    round-trip).
+                                  maxLength: 512
+                                  minLength: 8
+                                  pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                                  type: string
+                              type: object
+                          required:
+                          - kind
+                          type: object
+                        minItems: 1
+                        type: array
+                    required:
+                    - anyOf
+                    type: object
+                  verbs:
+                    items:
+                      type: string
+                    minItems: 1
+                    type: array
+                    x-kubernetes-list-type: set
+                required:
+                - resources
+                - verbs
+                type: object
+              approvals:
+                description: Approvals required when matched.
+                items:
+                  description: ApprovalSpec is one approval requirement.
+                  properties:
+                    approver:
+                      description: Approver identifies the principal authorised to
+                        approve.
+                      properties:
+                        kind:
+                          enum:
+                          - User
+                          - Role
+                          - Group
+                          type: string
+                        name:
+                          maxLength: 253
+                          type: string
+                      required:
+                      - kind
+                      - name
+                      type: object
+                    ifTimeout:
+                      description: IfTimeout decides what happens when no answer arrives.
+                      enum:
+                      - allow
+                      - deny
+                      - escalate
+                      type: string
+                    timeout:
+                      description: |-
+                        Duration is a coarse-grained, human-friendly duration string used in
+                        CRDs. Supported units: ns, us, ms, s, m, h, d, w.
+
+                        Validates: Requirements A2.2.
+                      maxLength: 32
+                      minLength: 2
+                      pattern: ^\d+(ns|us|ms|s|m|h|d|w)$
+                      type: string
+                    when:
+                      description: When is a CEL trigger expression.
+                      properties:
+                        expression:
+                          maxLength: 4096
+                          type: string
+                      type: object
+                  required:
+                  - approver
+                  - when
+                  type: object
+                type: array
+              conditions:
+                description: Conditions narrows when the policy fires.
+                properties:
+                  allOf:
+                    items:
+                      description: ConditionItem is one branch of conditions.allOf
+                        / anyOf / noneOf.
+                      properties:
+                        dataClassificationCeiling:
+                          description: |-
+                            Classification carries the data-sensitivity tag of a request, response,
+                            CRD or audit event.
+
+                            Validates: Requirements A2.5.
+                          enum:
+                          - public
+                          - internal
+                          - confidential
+                          - restricted
+                          - secret
+                          type: string
+                        expression:
+                          description: Expression is a CEL expression.
+                          maxLength: 4096
+                          type: string
+                        location:
+                          description: ConditionLocation captures geo / IP conditions.
+                          properties:
+                            countries:
+                              items:
+                                type: string
+                              type: array
+                            ipAllowList:
+                              items:
+                                type: string
+                              type: array
+                            ipDenyList:
+                              items:
+                                type: string
+                              type: array
+                            regions:
+                              items:
+                                type: string
+                              type: array
+                          type: object
+                        require:
+                          description: ConditionRequire captures step-up auth requirements.
+                          properties:
+                            deviceCompliant:
+                              type: boolean
+                            mfa:
+                              type: boolean
+                            sso:
+                              type: boolean
+                            stepUpAuth:
+                              type: boolean
+                          type: object
+                        riskScore:
+                          description: ConditionRiskScore caps the allowable risk
+                            score.
+                          properties:
+                            max:
+                              maximum: 1
+                              minimum: 0
+                              type: number
+                            min:
+                              maximum: 1
+                              minimum: 0
+                              type: number
+                          type: object
+                        timeWindow:
+                          description: ConditionTimeWindow captures schedule-style
+                            conditions.
+                          properties:
+                            schedule:
+                              maxLength: 128
+                              type: string
+                            timezone:
+                              maxLength: 64
+                              type: string
+                          type: object
+                      type: object
+                    type: array
+                  anyOf:
+                    items:
+                      description: ConditionItem is one branch of conditions.allOf
+                        / anyOf / noneOf.
+                      properties:
+                        dataClassificationCeiling:
+                          description: |-
+                            Classification carries the data-sensitivity tag of a request, response,
+                            CRD or audit event.
+
+                            Validates: Requirements A2.5.
+                          enum:
+                          - public
+                          - internal
+                          - confidential
+                          - restricted
+                          - secret
+                          type: string
+                        expression:
+                          description: Expression is a CEL expression.
+                          maxLength: 4096
+                          type: string
+                        location:
+                          description: ConditionLocation captures geo / IP conditions.
+                          properties:
+                            countries:
+                              items:
+                                type: string
+                              type: array
+                            ipAllowList:
+                              items:
+                                type: string
+                              type: array
+                            ipDenyList:
+                              items:
+                                type: string
+                              type: array
+                            regions:
+                              items:
+                                type: string
+                              type: array
+                          type: object
+                        require:
+                          description: ConditionRequire captures step-up auth requirements.
+                          properties:
+                            deviceCompliant:
+                              type: boolean
+                            mfa:
+                              type: boolean
+                            sso:
+                              type: boolean
+                            stepUpAuth:
+                              type: boolean
+                          type: object
+                        riskScore:
+                          description: ConditionRiskScore caps the allowable risk
+                            score.
+                          properties:
+                            max:
+                              maximum: 1
+                              minimum: 0
+                              type: number
+                            min:
+                              maximum: 1
+                              minimum: 0
+                              type: number
+                          type: object
+                        timeWindow:
+                          description: ConditionTimeWindow captures schedule-style
+                            conditions.
+                          properties:
+                            schedule:
+                              maxLength: 128
+                              type: string
+                            timezone:
+                              maxLength: 64
+                              type: string
+                          type: object
+                      type: object
+                    type: array
+                  noneOf:
+                    items:
+                      description: ConditionItem is one branch of conditions.allOf
+                        / anyOf / noneOf.
+                      properties:
+                        dataClassificationCeiling:
+                          description: |-
+                            Classification carries the data-sensitivity tag of a request, response,
+                            CRD or audit event.
+
+                            Validates: Requirements A2.5.
+                          enum:
+                          - public
+                          - internal
+                          - confidential
+                          - restricted
+                          - secret
+                          type: string
+                        expression:
+                          description: Expression is a CEL expression.
+                          maxLength: 4096
+                          type: string
+                        location:
+                          description: ConditionLocation captures geo / IP conditions.
+                          properties:
+                            countries:
+                              items:
+                                type: string
+                              type: array
+                            ipAllowList:
+                              items:
+                                type: string
+                              type: array
+                            ipDenyList:
+                              items:
+                                type: string
+                              type: array
+                            regions:
+                              items:
+                                type: string
+                              type: array
+                          type: object
+                        require:
+                          description: ConditionRequire captures step-up auth requirements.
+                          properties:
+                            deviceCompliant:
+                              type: boolean
+                            mfa:
+                              type: boolean
+                            sso:
+                              type: boolean
+                            stepUpAuth:
+                              type: boolean
+                          type: object
+                        riskScore:
+                          description: ConditionRiskScore caps the allowable risk
+                            score.
+                          properties:
+                            max:
+                              maximum: 1
+                              minimum: 0
+                              type: number
+                            min:
+                              maximum: 1
+                              minimum: 0
+                              type: number
+                          type: object
+                        timeWindow:
+                          description: ConditionTimeWindow captures schedule-style
+                            conditions.
+                          properties:
+                            schedule:
+                              maxLength: 128
+                              type: string
+                            timezone:
+                              maxLength: 64
+                              type: string
+                          type: object
+                      type: object
+                    type: array
+                type: object
+              constraints:
+                description: Constraints applied when the policy matches.
+                properties:
+                  budget:
+                    description: ConstraintBudget caps token / USD throughput.
+                    properties:
+                      tokensPerRequest:
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      tokensPerUserPerDay:
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      tokensPerUserPerMonth:
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      usdPerUserPerMonth:
+                        description: |-
+                          MoneyAmount is the canonical wire representation of a USD amount used
+                          in CostBlock fields. We store money as a string with a constrained
+                          pattern (rather than `float64`) to keep CRD diffs bit-for-bit
+                          reproducible and to avoid the JSON-number rounding that breaks audit
+                          hashing (Requirements F4, F22).
+                        maxLength: 32
+                        pattern: ^\d+(\.\d+)?$
+                        type: string
+                    type: object
+                  quota:
+                    description: |-
+                      ResourceRef is the canonical AIP URI used to reference any other resource
+                      (skills, tools, models, data, prompts, channels, connectors, memory,
+                      quota, ref, siem, policy). The accepted shape is
+                      `<scheme>://<path>[@<version>]`.
+
+                      Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                      round-trip).
+                    maxLength: 512
+                    minLength: 8
+                    pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                    type: string
+                  rateLimit:
+                    description: ConstraintRateLimit caps requests.
+                    properties:
+                      concurrentSessions:
+                        format: int32
+                        minimum: 0
+                        type: integer
+                      requestsPerHour:
+                        format: int32
+                        minimum: 0
+                        type: integer
+                      requestsPerMinute:
+                        format: int32
+                        minimum: 0
+                        type: integer
+                    type: object
+                type: object
+              effect:
+                description: Effect of the policy.
+                enum:
+                - allow
+                - deny
+                type: string
+              effectiveWindow:
+                description: EffectiveWindow restricts when the policy is in force.
+                properties:
+                  notAfter:
+                    format: date-time
+                    type: string
+                  notBefore:
+                    format: date-time
+                    type: string
+                type: object
+              enabled:
+                description: Enabled defaults to true.
+                type: boolean
+              obligations:
+                description: Obligations attached to allow / deny decisions.
+                properties:
+                  audit:
+                    description: ObligationAudit declares audit obligations.
+                    properties:
+                      forwardTo:
+                        items:
+                          description: |-
+                            ResourceRef is the canonical AIP URI used to reference any other resource
+                            (skills, tools, models, data, prompts, channels, connectors, memory,
+                            quota, ref, siem, policy). The accepted shape is
+                            `<scheme>://<path>[@<version>]`.
+
+                            Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                            round-trip).
+                          maxLength: 512
+                          minLength: 8
+                          pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                          type: string
+                        type: array
+                      includePromptHashes:
+                        type: boolean
+                      level:
+                        enum:
+                        - "off"
+                        - basic
+                        - high
+                        - forensic
+                        type: string
+                    type: object
+                  notify:
+                    description: ObligationNotify declares notify obligations.
+                    properties:
+                      onMatch:
+                        items:
+                          description: ObligationNotifyMatch is one notify trigger.
+                          properties:
+                            channel:
+                              maxLength: 253
+                              type: string
+                            condition:
+                              maxLength: 4096
+                              type: string
+                          required:
+                          - channel
+                          - condition
+                          type: object
+                        type: array
+                    type: object
+                  redact:
+                    description: ObligationRedact declares DLP redaction obligations.
+                    properties:
+                      fields:
+                        items:
+                          type: string
+                        type: array
+                      patternsRef:
+                        description: |-
+                          ResourceRef is the canonical AIP URI used to reference any other resource
+                          (skills, tools, models, data, prompts, channels, connectors, memory,
+                          quota, ref, siem, policy). The accepted shape is
+                          `<scheme>://<path>[@<version>]`.
+
+                          Validates: Requirements A2.1 (regex enforcement), F25 (Parse∘Format
+                          round-trip).
+                        maxLength: 512
+                        minLength: 8
+                        pattern: ^(skill|agent|tool|model|data|prompt|channel|connector|memory|quota|ref|siem|policy)://[A-Za-z0-9._/\-]+(@[A-Za-z0-9._\-+]+)?$
+                        type: string
+                    type: object
+                  watermark:
+                    description: ObligationWatermark declares watermark obligations.
+                    properties:
+                      enabled:
+                        type: boolean
+                      mode:
+                        enum:
+                        - visible
+                        - invisible
+                        - both
+                        type: string
+                      text:
+                        maxLength: 512
+                        type: string
+                    type: object
+                type: object
+              priority:
+                description: Priority — higher wins; ties go to deny.
+                format: int32
+                maximum: 1000
+                minimum: 0
+                type: integer
+              subject:
+                description: Subject the policy applies to.
+                properties:
+                  anyOf:
+                    items:
+                      description: SubjectEntry is one principal class.
+                      properties:
+                        kind:
+                          enum:
+                          - User
+                          - Role
+                          - Group
+                          - Agent
+                          - ServiceAccount
+                          - Tenant
+                          - Anonymous
+                          type: string
+                        match:
+                          description: |-
+                            SubjectMatch captures the labels / attributes / name match of a
+                            SubjectSelector entry.
+                          properties:
+                            attributes:
+                              description: Attributes is an open-ended ABAC bag.
+                              x-kubernetes-preserve-unknown-fields: true
+                            labels:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            name:
+                              maxLength: 253
+                              type: string
+                            namespace:
+                              maxLength: 253
+                              type: string
+                          type: object
+                      required:
+                      - kind
+                      type: object
+                    minItems: 1
+                    type: array
+                required:
+                - anyOf
+                type: object
+            required:
+            - action
+            - effect
+            - subject
+            type: object
+          status:
+            description: PolicyStatus is the observed state of a Policy.
+            properties:
+              bundleHash:
+                description: BundleHash of the latest compiled bundle (sha256:...).
+                maxLength: 72
+                type: string
+              bundleVersion:
+                description: BundleVersion is the monotonic counter (Requirement A5.5).
+                format: int64
+                type: integer
+              conditions:
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              conflicts:
+                description: Conflicts surfaces detected conflicts with other Policies.
+                items:
+                  description: PolicyConflict describes a conflict between Policies.
+                  properties:
+                    conflictsWith:
+                      maxLength: 512
+                      type: string
+                    reason:
+                      maxLength: 1024
+                      type: string
+                  required:
+                  - conflictsWith
+                  type: object
+                type: array
+              decisions24h:
+                description: Decisions24h breakdown.
+                properties:
+                  allow:
+                    format: int64
+                    type: integer
+                  deny:
+                    format: int64
+                    type: integer
+                  requireApproval:
+                    format: int64
+                    type: integer
+                type: object
+              distribution:
+                description: Distribution lists the per-PDP ack state.
+                items:
+                  description: PolicyDistributionStatus tracks per-PDP rollout.
+                  properties:
+                    ackedAt:
+                      description: AckedAt records the last successful ack.
+                      format: date-time
+                      type: string
+                    ackedBundleHash:
+                      description: AckedBundleHash records the hash the PDP currently
+                        has loaded.
+                      maxLength: 72
+                      type: string
+                    pdpInstance:
+                      description: PDPInstance identifier.
+                      maxLength: 253
+                      type: string
+                  required:
+                  - pdpInstance
+                  type: object
+                type: array
+              evaluationCount24h:
+                description: EvaluationCount24h rolling counter.
+                format: int64
+                type: integer
+              observedGeneration:
+                format: int64
+                type: integer
+              phase:
+                description: |-
+                  Phase is the coarse-grained status.phase value reported by every AIP
+                  controller. The combined enum covers every controller in the platform
+                  (Skill / Agent / Policy / Tool / DataSource / KB / ModelEndpoint /
+                  ModelRouter / Tenant / SA / Budget / Quota), so a single Phase type can
+                  be embedded in any status struct.
+
+                  Validates: Requirements A3, A4, A5 (state machines reference these
+                  values).
+                enum:
+                - Pending
+                - Validating
+                - Resolving
+                - Building
+                - Registering
+                - Evaluating
+                - Active
+                - Degraded
+                - Failed
+                - Deprecated
+                - Terminating
+                - Suspended
+                - Expired
+                - ResolvingSkills
+                - AttachingPolicies
+                - Provisioning
+                - Deploying
+                - Configuring
+                - RollingOut
+                - Running
+                - Paused
+                - RolledBack
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

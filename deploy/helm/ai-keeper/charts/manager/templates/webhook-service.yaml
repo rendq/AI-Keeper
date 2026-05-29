@@ -1,0 +1,25 @@
+{{/*
+Service exposing the AIP ValidatingAdmissionWebhook (task 2.3).
+
+The API server dials this Service on port 443; the manager pod listens
+on `containerPort` (default 9443). The selector matches the manager
+Deployment that lands in task 3.6.
+*/}}
+{{- if .Values.webhook.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.webhook.serviceName }}
+  namespace: {{ .Values.webhook.namespace }}
+  labels:
+    {{- include "manager.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: webhook
+      port: {{ .Values.webhook.servicePort | default 443 }}
+      targetPort: {{ .Values.webhook.containerPort | default 9443 }}
+      protocol: TCP
+  selector:
+    {{- include "manager.selectorLabels" . | nindent 4 }}
+{{- end }}

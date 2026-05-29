@@ -1,0 +1,23 @@
+# AuditEvent fixture used to verify Requirement A1.5: a regular user
+# (not annotated `ai-keeper.io/system=true`) attempting to CREATE an
+# AuditEvent must be rejected by the AIP admission webhook.
+#
+# Apply with:
+#   kubectl --context=kind apply -f testdata/admission/auditevent_user_attempt.yaml
+#
+# Expected outcome: HTTP 422, reason "AuditEvent CREATE/UPDATE/DELETE is
+# restricted to system ServiceAccounts annotated ai-keeper.io/system=true".
+apiVersion: audit.ai-keeper.io/v1alpha1
+kind: AuditEvent
+metadata:
+  name: forged-audit-1
+  namespace: default
+spec:
+  invocationId: 11111111-2222-3333-4444-555555555555
+  timestamp: "2026-05-26T12:00:00Z"
+  principal:
+    agent:
+      name: legal-copilot
+  action:
+    verb: invoke
+    resource: skill://contract-review@1.0.0

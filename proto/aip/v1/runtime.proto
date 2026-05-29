@@ -1,0 +1,154 @@
+// Copyright 2026 The AIP Authors.
+//
+// Agent Runtime gRPC contract.
+// Implements design.md §4.2 / §7 and Requirement B5.
+//
+// `Invoke()` returns a server-streamed sequence of execution events
+// (thought / tool_call / model_call / observation / final), one per state
+// transition in the Agent state machine. Each event corresponds 1:1 to an
+// `AuditEvent.steps[]` entry (B5.6 / Property 8 — audit completeness).
+//
+// P0 only requires `react` and `tool_calling` patterns; the others are
+// reserved enum values for forward compatibility.
+syntax = "proto3";
+
+package aip.v1;
+
+import "aip/v1/pdp.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// 6 patterns from `Agent.spec.runtime.pattern` (B5.1).
+enum RuntimePattern {
+  RUNTIME_PATTERN_UNSPECIFIED = 0;
+  RUNTIME_PATTERN_REACT = 1;
+  RUNTIME_PATTERN_PLAN_EXECUTE = 2;
+  RUNTIME_PATTERN_REFLECTION = 3;
+  RUNTIME_PATTERN_WORKFLOW = 4;
+  RUNTIME_PATTERN_TOOL_CALLING = 5;
+  RUNTIME_PATTERN_MULTI_AGENT = 6;
+}
+
+// Step kind written to AuditEvent.steps[].
+enum StepKind {
+  STEP_KIND_UNSPECIFIED = 0;
+  STEP_KIND_THOUGHT = 1;
+  STEP_KIND_TOOL_CALL = 2;
+  STEP_KIND_MODEL_CALL = 3;
+  STEP_KIND_OBSERVATION = 4;
+  STEP_KIND_GUARDRAIL = 5;
+  STEP_KIND_RETRIEVAL = 6;
+  STEP_KIND_FINAL = 7;
+}
+
+// Determinism knobs propagated to every LLM call (B5.5).
+message Determinism {
+  double temperature = 1;
+  double top_p = 2;
+  int64 seed = 3;
+}
+
+// Hard caps enforced by the runtime (B5.2 / B5.3 / B5.4).
+message RuntimeLimits {
+  int32 max_steps = 1;
+  int32 max_tool_calls = 2;
+  google.protobuf.Duration timeout = 3;
+  int32 parallelism = 4;
+}
+
+// One inbound chat message.
+message Message {
+  // "user" / "assistant" / "system" / "tool".
+  string role = 1;
+  string content = 2;
+  // Optional tool/function-call payload.
+  google.protobuf.Struct attachments = 3;
+}
+
+message InvokeRequest {
+  // FQN of the Agent CR (`<namespace>/<name>`).
+  string agent_ref = 1;
+  string session_id = 2;
+  string invocation_id = 3;
+  string trace_id = 4;
+
+  // Calling principal (already verified by Identity Broker).
+  Principal principal = 5;
+  RuntimePattern pattern = 6;
+  RuntimeLimits limits = 7;
+  Determinism determinism = 8;
+
+  // Conversation so far (last N messages).
+  repeated Message messages = 9;
+
+  // Free-form user context (country, deviceId, mfa…) used by Policy/Router.
+  google.protobuf.Struct user_context = 10;
+}
+
+// One execution step (mirrors AuditEvent.steps[]; B5.6).
+message Step {
+  StepKind kind = 1;
+  string id = 2;
+  google.protobuf.Timestamp started_at = 3;
+  google.protobuf.Duration latency = 4;
+
+  // Cost recorded for this step (only set on MODEL_CALL).
+  int32 tokens_in = 5;
+  int32 tokens_out = 6;
+  int32 tokens_cached = 7;
+
+  // Free-form payload describing the step (tool name + args, model alias,
+  // observation hash, citation list, …). Exact schema lives in design.md
+  // §7.4 / §8.1.
+  google.protobuf.Struct payload = 8;
+
+  // Set when kind == GUARDRAIL.
+  repeated string guardrails_triggered = 9;
+  bool guardrail_blocked = 10;
+
+  // Error telemetry.
+  string error_code = 11;
+  string error_message = 12;
+}
+
+// Streamed event from the runtime. Either a step delta or the final outcome.
+message InvokeEvent {
+  oneof event {
+    Step step = 1;
+    InvokeFinal final = 2;
+    Message delta = 3;
+  }
+}
+
+enum InvokeStatus {
+  INVOKE_STATUS_UNSPECIFIED = 0;
+  INVOKE_STATUS_SUCCESS = 1;
+  INVOKE_STATUS_ERROR = 2;
+  INVOKE_STATUS_TIMEOUT = 3;
+  INVOKE_STATUS_BLOCKED = 4;
+  INVOKE_STATUS_PARTIAL = 5;
+}
+
+// Final outcome for the invocation.
+message InvokeFinal {
+  InvokeStatus status = 1;
+  Message response = 2;
+  string error_code = 3;
+  string error_message = 4;
+  // Aggregate cost (sum across all steps).
+  int32 tokens_in = 5;
+  int32 tokens_out = 6;
+  int32 tokens_cached = 7;
+  double cost_usd = 8;
+  google.protobuf.Duration duration = 9;
+  // Citations surfaced from KB / tools.
+  repeated string citations = 10;
+}
+
+service AgentRuntimeService {
+  // Server-streamed invocation. Clients receive one InvokeEvent per state
+  // transition; the stream MUST end with exactly one InvokeFinal (B5.6 /
+  // Property 8 — audit completeness invariant).
+  rpc Invoke(InvokeRequest) returns (stream InvokeEvent);
+}

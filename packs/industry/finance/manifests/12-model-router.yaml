@@ -1,0 +1,35 @@
+apiVersion: model.ai-keeper.io/v1alpha1
+kind: ModelRouter
+metadata:
+  name: finance-router
+  namespace: finance-dept
+spec:
+  displayName: 金融业务模型路由
+  alias: reasoner
+  rules:
+    - name: aml-high-priority
+      when:
+        expression: "request.skill == 'aml-detection' && request.priority == 'high'"
+      endpoints:
+        - ref: model://finance-dept/baichuan-private
+          weight: 100
+      description: 反洗钱高优先级请求走私有化部署（低延迟）
+    - name: private-deployment-preferred
+      when:
+        expression: "request.classification == 'secret'"
+      endpoints:
+        - ref: model://finance-dept/baichuan-private
+          weight: 100
+      description: 密级数据强制走私有化部署
+    - name: default-route
+      when:
+        expression: "true"
+      endpoints:
+        - ref: model://finance-dept/tongyi-qwen
+          weight: 70
+        - ref: model://finance-dept/baichuan-private
+          weight: 30
+      description: 默认按比例分流
+  cache:
+    enabled: false
+  fallbackBehavior: sequential

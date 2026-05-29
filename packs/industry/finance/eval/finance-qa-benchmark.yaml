@@ -1,0 +1,52 @@
+apiVersion: eval.ai-keeper.io/v1alpha1
+kind: EvalSet
+metadata:
+  name: finance-qa-benchmark
+  namespace: finance-dept
+spec:
+  displayName: 金融问答 Benchmark
+  description: |
+    覆盖金融行业常见问答场景的评估集，包括：
+    - 监管法规问答（银保监、证监会、央行相关规定）
+    - 金融产品知识问答
+    - 风险管理基础知识
+    - 投资分析方法论
+  version: "1.0.0"
+  metrics:
+    - name: accuracy
+      description: 答案正确率
+      threshold: 0.85
+    - name: groundedness
+      description: 答案基于知识库内容的程度
+      threshold: 0.80
+    - name: relevance
+      description: 答案与问题的相关性
+      threshold: 0.90
+  samples:
+    - id: fqa-001
+      input:
+        query: "商业银行资本充足率的最低要求是多少？"
+      expected:
+        answer: "根据《商业银行资本管理办法》，商业银行核心一级资本充足率不得低于5%，一级资本充足率不得低于6%，资本充足率不得低于8%。"
+        citations:
+          - source: 商业银行资本管理办法
+      tags: [regulatory, banking]
+    - id: fqa-002
+      input:
+        query: "什么是反洗钱大额交易报告制度？"
+      expected:
+        answer: "金融机构对单笔或当日累计人民币交易5万元以上或外币等值1万美元以上的现金缴存、现金支取等交易，应当向中国反洗钱监测分析中心报告。"
+        citations:
+          - source: 金融机构大额交易和可疑交易报告管理办法
+      tags: [aml, regulatory]
+    - id: fqa-003
+      input:
+        query: "科创板上市公司需要满足哪些财务指标？"
+      expected:
+        answer: "科创板上市标准设置了5套市值和财务指标，如标准一要求预计市值不低于10亿元，最近两年净利润均为正且累计不低于5000万元。"
+        citations:
+          - source: 科创板股票上市规则
+      tags: [securities, ipo]
+  schedule:
+    cron: "0 3 * * 1"
+    retainResults: 30

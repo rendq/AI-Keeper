@@ -1,0 +1,42 @@
+# Two policies with same priority, opposite effects, and identical
+# subject+resource selectors → hard conflict.
+# Violation: policy/no-conflict
+apiVersion: policy.ai-keeper.io/v1alpha1
+kind: Policy
+metadata:
+  name: allow-all-agents
+spec:
+  effect: allow
+  priority: 100
+  subject:
+    anyOf:
+      - kind: Agent
+        match:
+          name: legal-copilot
+  action:
+    verbs: ["invoke"]
+    resources:
+      anyOf:
+        - kind: Skill
+          match:
+            name: contract-review
+---
+apiVersion: policy.ai-keeper.io/v1alpha1
+kind: Policy
+metadata:
+  name: deny-all-agents
+spec:
+  effect: deny
+  priority: 100
+  subject:
+    anyOf:
+      - kind: Agent
+        match:
+          name: legal-copilot
+  action:
+    verbs: ["invoke"]
+    resources:
+      anyOf:
+        - kind: Skill
+          match:
+            name: contract-review

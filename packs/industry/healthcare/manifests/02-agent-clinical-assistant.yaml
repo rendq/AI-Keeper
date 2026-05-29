@@ -1,0 +1,86 @@
+apiVersion: agent.ai-keeper.io/v1alpha1
+kind: Agent
+metadata:
+  name: clinical-doc-assistant
+  namespace: healthcare-dept
+  labels:
+    ai-keeper.io/industry: healthcare
+    ai-keeper.io/function: clinical-documentation
+spec:
+  displayName: 临床文档助手
+  description: |
+    辅助医护人员进行病历摘要生成、临床文档分析、医疗术语标准化，
+    严格遵守 HIPAA 隐私规则，所有 PHI 数据全程加密脱敏。
+  identity:
+    serviceAccountRef: ref://core/healthcare-clinical-sa
+    representation:
+      mode: on_behalf_of
+      requireUserContext: true
+  skills:
+    - ref: skill://clinical-summarization@1.0.0
+      versionConstraint: ">=1.0.0 <2.0.0"
+    - ref: skill://medical-terminology@1.0.0
+      versionConstraint: ">=1.0.0 <2.0.0"
+  runtime:
+    pattern: tool_calling
+    maxSteps: 15
+    maxToolCalls: 10
+    timeout: 90s
+    determinism:
+      temperature: 0.0
+      topP: 0.9
+      seed: 42
+    budget:
+      tokensPerSession: 40000
+      usdPerSession: 1.5
+      onExceed: terminate
+    sandbox:
+      enabled: true
+      type: gvisor
+  guardrails:
+    input:
+      - kind: PromptInjection
+        provider: aip-builtin
+        action: block
+      - kind: PII
+        provider: aip-builtin
+        action: mask
+    output:
+      - kind: ClassificationLeak
+        provider: aip-builtin
+        action: block
+      - kind: PIILeak
+        provider: aip-builtin
+        action: block
+      - kind: Hallucination
+        provider: aip-builtin
+        action: warn
+        threshold: 0.7
+  governance:
+    classification: restricted
+    pii:
+      onInput: detect_and_mask
+      onOutput: detect_and_block
+      patternsRef: ref://patterns/healthcare-phi
+    audit:
+      level: high
+      includePromptHashes: true
+  channels:
+    - type: api
+      rateLimit:
+        requestsPerMinute: 60
+        concurrentSessions: 10
+    - type: web
+      rateLimit:
+        requestsPerMinute: 30
+        concurrentSessions: 5
+  deployment:
+    replicas: 2
+    maxReplicas: 8
+    rollout:
+      strategy: canary
+      steps:
+        - 10%
+        - 50%
+        - 100%
+      analysisInterval: 15m

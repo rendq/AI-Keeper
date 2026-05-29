@@ -1,0 +1,32 @@
+{
+  "aip": {
+    "context": {
+      "subjects": [
+        {
+          "kind": "User",
+          "name": "alice",
+          "labels": {
+            "team": "research"
+          }
+        },
+        {
+          "kind": "Anonymous",
+          "name": "guest"
+        }
+      ],
+      "resources": [
+        {
+          "kind": "Skill",
+          "name": "contract-review",
+          "namespace": "default",
+          "classification": "internal"
+        }
+      ]
+    },
+    "metadata": {
+      "version": 0,
+      "compiled_at": "2026-05-29T09:11:57Z",
+      "policy_count": 2
+    }
+  }
+}

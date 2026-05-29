@@ -1,0 +1,92 @@
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Skill
+metadata:
+  name: medical-qa
+  namespace: healthcare-dept
+spec:
+  version: "1.0.0"
+  stability: stable
+  interface:
+    input:
+      schema:
+        type: object
+        required:
+          - query
+        properties:
+          query:
+            type: string
+            description: 医学问答查询
+          context:
+            type: object
+            properties:
+              patientId:
+                type: string
+                description: 可选的患者 ID，用于个性化回答
+              specialty:
+                type: string
+                enum: [cardiology, oncology, neurology, pediatrics, general]
+                description: 科室/专科
+          evidenceLevel:
+            type: string
+            enum: [guidelines, meta-analysis, rct, expert-opinion]
+            description: 要求的证据等级
+    output:
+      schema:
+        type: object
+        required:
+          - answer
+          - confidence
+        properties:
+          answer:
+            type: string
+            description: 医学问答答案
+          confidence:
+            type: number
+            minimum: 0
+            maximum: 1
+            description: 答案置信度
+          citations:
+            type: array
+            items:
+              type: object
+              properties:
+                source:
+                  type: string
+                title:
+                  type: string
+                doi:
+                  type: string
+          disclaimer:
+            type: string
+            description: 医学免责声明
+  implementation:
+    runtime: python
+    image: registry.example.com/aip/skills/medical-qa:1.0.0
+    entrypoint: medical_qa:answer
+    requires:
+      models:
+        - alias: reasoner
+          versionConstraint: ">=2024.01"
+      dataSources:
+        - ref: data://healthcare-dept/medical-guidelines-kb
+  governance:
+    classification: confidential
+    pii:
+      onInput: detect_and_mask
+      onOutput: detect_and_block
+      patternsRef: ref://patterns/phi-identifiers
+  cost:
+    budget: ref://budget/healthcare-dept-monthly
+  slo:
+    p95LatencyMs: 5000
+    successRate: 0.98
+  evaluation:
+    evalSet: ref://eval/medical-terminology-benchmark
+    schedule: "0 2 * * 1"
+    gates:
+      promoteToStable:
+        minScore: 0.82
+        metrics:
+          - accuracy
+          - relevance
+          - groundedness

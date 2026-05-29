@@ -1,0 +1,21 @@
+# Sub-chart: storage
+# PostgreSQL 16 + Redis 7 + NATS JetStream backing services for AIP.
+#
+# - PostgreSQL: Skill / Tool / Prompt Registry
+# - Redis: rate limiting, session store, budget counters, token blacklist
+# - NATS JetStream: event bus + audit topic
+apiVersion: v2
+name: storage
+description: PostgreSQL 16 + Redis 7 + NATS JetStream backing services for AIP
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.28.0-0"
+keywords:
+  - aip
+  - storage
+  - postgresql
+  - redis
+  - nats
+maintainers:
+  - name: The AIP Authors

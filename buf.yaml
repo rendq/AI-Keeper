@@ -1,0 +1,26 @@
+# buf module configuration for the AI-Keeper proto contracts.
+#
+# All AI-Keeper gRPC contracts live under `proto/aip/v1/` (single buf module rooted
+# at `proto/`). `buf lint && buf generate` is wired up via `make proto`.
+#
+# Lint profile: STANDARD with two opt-outs. The full standard set is overly
+# opinionated for a service-oriented API surface where messages are domain
+# objects (Decision / AuditEvent / RouteRequest) — we already namespace
+# everything under `aip.v1`.
+version: v2
+modules:
+  - path: proto
+    name: buf.build/ai-keeper/ai-keeper
+lint:
+  use:
+    - STANDARD
+  except:
+    # Allow request/response messages without `Request` / `Response` suffix.
+    # We have plenty of streaming events / acks where the Request/Response
+    # naming would be noisy (e.g. `Ack`, `RouteEvent`).
+    - RPC_REQUEST_RESPONSE_UNIQUE
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+breaking:
+  use:
+    - FILE

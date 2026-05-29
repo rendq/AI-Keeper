@@ -1,0 +1,82 @@
+// Copyright 2026 The AIP Authors.
+//
+// DLP / Classification Engine gRPC contract.
+// Implements design.md §4.2 / §10.2 and Requirement B4.
+//
+// Inspect() detects PII / sensitive data in inbound and outbound text,
+// returning either masked text (mode=mask), a block verdict, or pass-through
+// classification metadata.
+syntax = "proto3";
+
+package aip.v1;
+
+import "aip/v1/pdp.proto";
+
+// What to do on a hit. Mirrors `governance.pii.onInput / onOutput`.
+enum DlpAction {
+  DLP_ACTION_UNSPECIFIED = 0;
+  DLP_ACTION_PASS = 1;
+  DLP_ACTION_MASK = 2;
+  DLP_ACTION_BLOCK = 3;
+  DLP_ACTION_DETECT = 4;
+}
+
+// Stage at which the inspection runs (input → DLP → Runtime → DLP → output).
+enum InspectStage {
+  INSPECT_STAGE_UNSPECIFIED = 0;
+  INSPECT_STAGE_INPUT = 1;
+  INSPECT_STAGE_OUTPUT = 2;
+}
+
+// Policy snapshot the PEP wants to apply to this text.
+message DlpPolicy {
+  // patternsRef: ref://patterns/<name> (B4.6 — custom patterns).
+  string patterns_ref = 1;
+  // Built-in PII categories to detect (id_card / phone / bank_card / email …).
+  repeated string categories = 2;
+  DlpAction action = 3;
+  // If set, downgrade or upgrade classification of the resulting text.
+  Classification declared_classification = 4;
+}
+
+// One PII / sensitive hit in the text.
+message DlpFinding {
+  // Category of the hit (e.g. "phone_number", "id_card").
+  string category = 1;
+  // Byte-range in the original `text`.
+  int32 start = 2;
+  int32 end = 3;
+  // Confidence score in [0,1].
+  double confidence = 4;
+  // The pattern id that fired (e.g. `cn_id_card_v2`).
+  string rule = 5;
+}
+
+message InspectRequest {
+  string text = 1;
+  DlpPolicy policy = 2;
+  InspectStage stage = 3;
+  // Trace correlation.
+  string invocation_id = 10;
+  string tenant_id = 11;
+}
+
+message InspectResponse {
+  // Whether the action was taken (pass / mask / block).
+  DlpAction action_taken = 1;
+  // Masked text (only set when action_taken == MASK).
+  string masked_text = 2;
+  // Distinct categories that were detected (audit-safe — types only,
+  // never raw values; B4.5).
+  repeated string redactions = 3;
+  // Detailed findings (positions, confidence) — held in-memory only,
+  // never persisted to audit storage.
+  repeated DlpFinding findings = 4;
+  // Final classification of the inspected text after propagation.
+  Classification classification = 5;
+}
+
+service DlpService {
+  // Inspect a single text payload (B4.1 / B4.2 / B4.3).
+  rpc Inspect(InspectRequest) returns (InspectResponse);
+}

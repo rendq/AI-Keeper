@@ -1,0 +1,52 @@
+apiVersion: eval.ai-keeper.io/v1alpha1
+kind: EvalSet
+metadata:
+  name: medical-terminology-benchmark
+  namespace: healthcare-dept
+spec:
+  displayName: 医疗术语 Benchmark
+  description: |
+    覆盖医疗行业常见术语理解与应用场景的评估集，包括：
+    - 医学术语定义与解释
+    - ICD-10 编码识别
+    - 临床指南问答
+    - 药物知识问答
+  version: "1.0.0"
+  metrics:
+    - name: accuracy
+      description: 医学术语理解准确率
+      threshold: 0.85
+    - name: groundedness
+      description: 答案基于知识库内容的程度
+      threshold: 0.82
+    - name: relevance
+      description: 答案与问题的相关性
+      threshold: 0.90
+  samples:
+    - id: mt-001
+      input:
+        query: "What is the difference between Type 1 and Type 2 diabetes mellitus in terms of pathophysiology?"
+      expected:
+        answer: "Type 1 diabetes is an autoimmune condition where the immune system destroys pancreatic beta cells, leading to absolute insulin deficiency. Type 2 diabetes is characterized by insulin resistance and progressive beta cell dysfunction, resulting in relative insulin deficiency."
+        citations:
+          - source: ADA Standards of Medical Care in Diabetes
+      tags: [endocrinology, pathophysiology]
+    - id: mt-002
+      input:
+        query: "What are the CURB-65 criteria for community-acquired pneumonia severity assessment?"
+      expected:
+        answer: "CURB-65 scores one point each for: Confusion (new), Urea >7 mmol/L, Respiratory rate ≥30/min, Blood pressure (systolic <90 or diastolic ≤60 mmHg), and age ≥65. Scores 0-1 suggest outpatient treatment, 2 consider short hospitalization, 3-5 require hospitalization with ICU consideration for 4-5."
+        citations:
+          - source: BTS Guidelines for CAP Management
+      tags: [pulmonology, scoring-system]
+    - id: mt-003
+      input:
+        query: "What is the mechanism of action of metformin in treating Type 2 diabetes?"
+      expected:
+        answer: "Metformin primarily reduces hepatic glucose production by activating AMP-activated protein kinase (AMPK). It also increases insulin sensitivity in peripheral tissues, reduces intestinal absorption of glucose, and improves glucose uptake and utilization."
+        citations:
+          - source: Pharmacology and Therapeutics Guidelines
+      tags: [pharmacology, diabetes]
+  schedule:
+    cron: "0 2 * * 1"
+    retainResults: 30

@@ -1,0 +1,47 @@
+# Healthcare Industry Pack — Customizable Values
+# Override these values when installing: aikctl pack install industry/healthcare --values my-values.yaml
+
+tenant:
+  name: healthcare-dept
+  adminEmail: healthcare-admin@example.com
+  dataResidency:
+    - us-east-1
+    - us-west-2
+
+model:
+  # vLLM On-Premise — 本地 vLLM 医疗大模型推理服务
+  vllmEndpoint: https://vllm-medical.internal:8000/v1
+  vllmModel: medical-llama-70b
+  vllmSecretRef: ref://secret/vllm-medical-key
+  vllmTpm: 400000
+  vllmRpm: 2000
+  vllmGpuType: A100
+  vllmReplicas: 2
+
+  # TGI On-Premise — 本地 TGI 医疗大模型推理服务
+  tgiEndpoint: https://tgi-medical.internal:8080/v1
+  tgiModel: medical-mixtral-8x7b
+  tgiSecretRef: ref://secret/tgi-medical-key
+  tgiTpm: 300000
+  tgiRpm: 1500
+  tgiGpuType: A100
+  tgiReplicas: 2
+
+compliance:
+  # HIPAA 合规策略
+  hipaaEnabled: true
+  # PHI 脱敏
+  phiRedactionEnabled: true
+  # Patient ID ACL
+  patientIdAclEnabled: true
+
+knowledgeBase:
+  embeddingModel: ref://model/bge-large-en-v1.5
+  embeddingDimensions: 1024
+  chunkMaxTokens: 512
+  chunkOverlap: 64
+  syncSchedule: "0 */6 * * *"
+
+evaluation:
+  schedule: "0 2 * * 1"
+  minScore: 0.82

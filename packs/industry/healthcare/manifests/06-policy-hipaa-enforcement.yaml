@@ -1,0 +1,65 @@
+apiVersion: policy.ai-keeper.io/v1alpha1
+kind: Policy
+metadata:
+  name: hipaa-enforcement
+  namespace: healthcare-dept
+spec:
+  displayName: HIPAA 合规强制策略
+  description: |
+    依据 HIPAA Privacy Rule 和 Security Rule，对医疗 AI 系统实施强制安全策略。
+    覆盖 PHI 访问控制、最小必要原则、审计追踪、加密传输与存储等要求。
+  effect: deny
+  priority: 10
+  subject:
+    match:
+      - kind: ServiceAccount
+        names:
+          - "*"
+      - kind: User
+        attributes:
+          department: healthcare
+  action:
+    - invoke
+    - query
+    - export
+  resource:
+    match:
+      - kind: Skill
+        names:
+          - medical-record-summary
+          - medical-qa
+          - drug-interaction-check
+      - kind: KnowledgeBase
+        names:
+          - medical-guidelines-kb
+  conditions:
+    # 强制 PHI 数据不得出境
+    - expression: "request.dataResidency.all(r, r.startsWith('us-'))"
+      description: PHI data must remain within US regions per HIPAA requirements
+    # 强制审计日志
+    - expression: "request.auditLevel != 'none'"
+      description: All PHI access must produce an audit trail (HIPAA §164.312(b))
+    # 强制加密传输
+    - expression: "request.transport.encryption == 'tls1.3'"
+      description: All data in transit must use TLS 1.3 encryption (HIPAA §164.312(e))
+    # 最小必要原则
+    - expression: "request.scope.isMinimumNecessary()"
+      description: Access must comply with HIPAA Minimum Necessary Rule (§164.502(b))
+  constraints:
+    maxClassification: restricted
+    requireMfa: true
+    sessionTimeout: 15m
+  obligations:
+    audit:
+      level: high
+      includePromptHashes: true
+      retentionDays: 2190
+    encryption:
+      atRest: aes256
+      inTransit: tls1.3
+    notify:
+      onViolation:
+        - channel: pagerduty
+          template: hipaa-violation-alert
+        - channel: email
+          template: hipaa-breach-notification

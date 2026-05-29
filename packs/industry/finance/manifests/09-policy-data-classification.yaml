@@ -1,0 +1,65 @@
+apiVersion: policy.ai-keeper.io/v1alpha1
+kind: Policy
+metadata:
+  name: data-classification
+  namespace: finance-dept
+spec:
+  displayName: 数据分级策略
+  description: |
+    按照金融行业数据安全分级标准，对数据进行分类分级管理。
+    不同级别数据适用不同的访问控制、加密和审计要求。
+  effect: deny
+  priority: 20
+  subject:
+    match:
+      - kind: ServiceAccount
+        names:
+          - "*"
+      - kind: User
+        attributes:
+          department: finance
+  action:
+    - query
+    - export
+    - invoke
+  resource:
+    match:
+      - kind: KnowledgeBase
+        names:
+          - finance-regulations-kb
+      - kind: DataSource
+        names:
+          - finance-docs-source
+  conditions:
+    # 高密级数据仅限特定角色访问
+    - expression: "resource.classification == 'secret' ? subject.hasAnyRole('compliance-officer', 'risk-manager', 'cfo') : true"
+      description: 密级数据仅限合规官、风控经理、CFO 访问
+    # 导出操作需额外审批
+    - expression: "request.action == 'export' ? request.approval.status == 'approved' : true"
+      description: 数据导出需额外审批
+  constraints:
+    classificationLevels:
+      - name: public
+        encryption: optional
+        audit: standard
+      - name: internal
+        encryption: required
+        audit: standard
+      - name: confidential
+        encryption: required
+        audit: high
+      - name: secret
+        encryption: required
+        audit: high
+        accessReview: quarterly
+  obligations:
+    audit:
+      level: high
+      includePromptHashes: true
+    masking:
+      onOutput:
+        patterns:
+          - bank_account
+          - id_card
+          - phone_number
+        action: partial_mask

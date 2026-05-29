@@ -1,0 +1,81 @@
+apiVersion: agent.ai-keeper.io/v1alpha1
+kind: Agent
+metadata:
+  name: compliance-reviewer
+  namespace: finance-dept
+  labels:
+    ai-keeper.io/industry: finance
+    ai-keeper.io/function: compliance
+spec:
+  displayName: 合规审查助手
+  description: |
+    自动化 SOX/PCI-DSS 合规审查，对交易记录、内控流程进行合规性分析，
+    生成审查报告并标注风险点。
+  identity:
+    serviceAccountRef: ref://core/finance-compliance-sa
+    representation:
+      mode: on_behalf_of
+      requireUserContext: true
+  skills:
+    - ref: skill://compliance-review@1.0.0
+      versionConstraint: ">=1.0.0 <2.0.0"
+    - ref: skill://risk-scoring@1.0.0
+      versionConstraint: ">=1.0.0 <2.0.0"
+  runtime:
+    pattern: tool_calling
+    maxSteps: 20
+    maxToolCalls: 15
+    timeout: 120s
+    determinism:
+      temperature: 0.1
+      topP: 0.9
+    budget:
+      tokensPerSession: 50000
+      usdPerSession: 2.0
+      onExceed: terminate
+    sandbox:
+      enabled: true
+      type: gvisor
+  guardrails:
+    input:
+      - kind: PromptInjection
+        provider: aip-builtin
+        action: block
+      - kind: PII
+        provider: aip-builtin
+        action: mask
+    output:
+      - kind: ClassificationLeak
+        provider: aip-builtin
+        action: block
+      - kind: PIILeak
+        provider: aip-builtin
+        action: block
+  governance:
+    classification: confidential
+    pii:
+      onInput: detect_and_mask
+      onOutput: detect_and_block
+      patternsRef: ref://patterns/finance-pii
+    audit:
+      level: high
+      includePromptHashes: true
+  channels:
+    - type: feishu
+      rateLimit:
+        requestsPerMinute: 30
+        concurrentSessions: 5
+    - type: api
+      rateLimit:
+        requestsPerMinute: 100
+        concurrentSessions: 20
+  deployment:
+    replicas: 2
+    maxReplicas: 10
+    rollout:
+      strategy: canary
+      steps:
+        - 10%
+        - 30%
+        - 100%
+      analysisInterval: 10m

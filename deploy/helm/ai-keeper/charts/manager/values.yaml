@@ -1,0 +1,71 @@
+# Default values for the manager sub-chart.
+# Real knobs (replicas, probes, envFrom, resources, ...) are added by
+# the owning component task. Keep this file representative so
+# `helm template` walks it cleanly.
+---
+# Toggle controlled by the parent chart (`manager.enabled` at top level).
+enabled: false
+
+nameOverride: ""
+fullnameOverride: ""
+
+replicaCount: 1
+
+image:
+  repository: aip/manager
+  # Empty tag falls back to the umbrella chart's global.imageTag.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+
+# ValidatingAdmissionWebhook + cert-manager wiring (task 2.3).
+# When `webhook.enabled=true` the chart renders:
+#   - cert-manager Issuer (selfSigned).
+#   - cert-manager Certificate (DNS names match the webhook Service).
+#   - Service `aip-manager-webhook` (port 443 → containerPort 9443).
+#   - ValidatingWebhookConfiguration (one webhook per AIP Kind).
+#
+# Defaults match the conventions used by `kubebuilder` so the same
+# manifests work in kind / dev clusters and in production.
+webhook:
+  enabled: true
+  # Namespace where the webhook Service lives. Override when running
+  # the manager outside of `aik-system`.
+  namespace: aik-system
+  # Service / port the API server dials. The container listens on 9443.
+  serviceName: aip-manager-webhook
+  servicePort: 443
+  containerPort: 9443
+  # Failure policy applied to every webhook entry.
+  failurePolicy: Fail
+  # API-server side timeout (≤ 30s).
+  timeoutSeconds: 10
+  # Sets `sideEffects` on the webhook (None means no side-effects).
+  sideEffects: None
+  # cert-manager Issuer / Certificate names.
+  certificate:
+    issuerName: aip-manager-webhook-selfsigned-issuer
+    certificateName: aip-manager-webhook-cert
+    secretName: aip-manager-webhook-tls
+    # Validity window for the self-signed cert (cert-manager renews
+    # automatically; this controls the renewal cadence).
+    duration: 8760h    # 1 year
+    renewBefore: 720h  # 30 days

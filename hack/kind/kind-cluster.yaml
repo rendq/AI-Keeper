@@ -1,0 +1,39 @@
+# kind cluster definition for the AIP local dev environment.
+#
+# Topology:
+#   • 1 × control-plane (with ingress-ready labels and ports 80/443 mapped
+#     to localhost so an in-cluster ingress controller is reachable directly)
+#   • 2 × worker nodes
+#
+# `containerdConfigPatches` wires the cluster's containerd to a host-side
+# local registry (see `hack/kind/kind-with-registry.sh`), following the
+# canonical pattern documented at https://kind.sigs.k8s.io/docs/user/local-registry/.
+# The mirror is reachable from inside any pod / node as
+# `kind-registry:5000` and from the host as `localhost:5001`.
+---
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: aik-dev
+
+containerdConfigPatches:
+  - |-
+    [plugins."io.containerd.grpc.v1.cri".registry]
+      config_path = "/etc/containerd/certs.d"
+
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP
+  - role: worker
+  - role: worker

@@ -1,0 +1,56 @@
+# Taskfile (https://taskfile.dev) — thin wrapper around the Makefile so contributors
+# can choose either driver. The Makefile is the canonical source of truth.
+version: "3"
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  bootstrap:
+    desc: Install the full dev toolchain (gofumpt / ruff / eslint / yamllint / kubeconform / pre-commit)
+    cmds:
+      - make bootstrap
+
+  lint:
+    desc: Run every linter
+    cmds:
+      - make lint
+
+  fmt:
+    desc: Auto-format Go + Python + Node
+    cmds:
+      - make fmt
+
+  tidy:
+    desc: go mod tidy
+    cmds:
+      - make tidy
+
+  proto:
+    desc: Lint + generate proto stubs (Go / Python / TS)
+    cmds:
+      - make proto
+
+  proto:clean:
+    desc: Remove generated proto stubs (keeps .proto sources)
+    cmds:
+      - make proto-clean
+
+  clean:
+    desc: Remove caches and local toolchain
+    cmds:
+      - make clean
+
+  # --- per-language shortcuts ---
+  lint:go:
+    cmds: [make lint-go]
+  lint:python:
+    cmds: [make lint-python]
+  lint:yaml:
+    cmds: [make lint-yaml]
+  lint:node:
+    cmds: [make lint-node]
+  lint:k8s:
+    cmds: [make lint-k8s]

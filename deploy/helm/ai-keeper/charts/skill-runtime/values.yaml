@@ -1,0 +1,72 @@
+# Default values for skill-runtime chart.
+
+# Container image for the skill runtime.
+image:
+  repository: ghcr.io/aip-io/skill-runtime
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# Knative Serving configuration.
+knative:
+  enabled: true
+  # Scaling configuration.
+  scaling:
+    minInstances: 0
+    maxInstances: 10
+    # Target concurrency per pod.
+    concurrencyTarget: 100
+    # Scale-to-zero grace period.
+    scaleToZeroGracePeriod: "30s"
+  # Annotations to add to the Knative Service.
+  annotations: {}
+
+# KServe InferenceService (alternative to Knative Service).
+kserve:
+  enabled: false
+  predictor:
+    minReplicas: 0
+    maxReplicas: 10
+
+# Resource requests and limits.
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+# Environment variables to inject.
+env: []
+  # - name: LOG_LEVEL
+  #   value: "info"
+
+# Service port (gRPC).
+service:
+  port: 50051
+  protocol: h2c
+
+# Labels to apply to all resources.
+labels: {}
+
+# Annotations for the pods.
+podAnnotations: {}
+
+# Service account name.
+serviceAccountName: ""
+
+# Node selector.
+nodeSelector: {}
+
+# Tolerations.
+tolerations: []
+
+# Pod security context.
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Container security context.
+containerSecurityContext:
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false

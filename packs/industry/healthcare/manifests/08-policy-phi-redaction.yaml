@@ -1,0 +1,65 @@
+apiVersion: policy.ai-keeper.io/v1alpha1
+kind: Policy
+metadata:
+  name: phi-redaction
+  namespace: healthcare-dept
+spec:
+  displayName: PHI 脱敏策略
+  description: |
+    依据 HIPAA Safe Harbor 方法，对 18 类 PHI 标识符实施自动检测与脱敏。
+    包括姓名、地理信息、日期、电话、传真、邮箱、SSN、MRN、保险号、
+    账户号、证书号、车辆识别号、设备序列号、URL、IP 地址、生物特征、
+    面部照片及其他唯一识别号。
+  effect: deny
+  priority: 20
+  subject:
+    match:
+      - kind: ServiceAccount
+        names:
+          - "*"
+      - kind: User
+        attributes:
+          department: healthcare
+  action:
+    - invoke
+    - query
+    - export
+  resource:
+    match:
+      - kind: Skill
+        names:
+          - medical-record-summary
+          - medical-qa
+          - drug-interaction-check
+  conditions:
+    # PHI 必须经过脱敏处理
+    - expression: "request.output.phiRedaction == 'enabled'"
+      description: All output containing PHI must be redacted per Safe Harbor method
+  constraints:
+    maxClassification: restricted
+  obligations:
+    redact:
+      patternsRef: ref://patterns/phi-safe-harbor
+      fields:
+        - patientName
+        - dateOfBirth
+        - ssn
+        - mrn
+        - address
+        - phoneNumber
+        - emailAddress
+        - insuranceId
+        - accountNumber
+        - deviceIdentifier
+        - ipAddress
+        - biometricId
+        - photoFaceImage
+      method: safe-harbor
+      replacementFormat: "[REDACTED-{type}]"
+    audit:
+      level: high
+      includeRedactionLog: true
+      retentionDays: 2190
+    watermark:
+      enabled: true
+      mode: output

@@ -1,0 +1,22 @@
+apiVersion: core.ai-keeper.io/v1alpha1
+kind: Tenant
+metadata:
+  name: healthcare-dept
+spec:
+  displayName: 医疗事业部
+  complianceProfile:
+    standards:
+      - HIPAA
+      - HITECH
+    dataResidency:
+      - us-east-1
+      - us-west-2
+  modelAllowlist:
+    - model://vllm-medical
+    - model://tgi-medical
+  deployment:
+    regions:
+      - us-east-1
+      - us-west-2
+  admin:
+    email: healthcare-admin@example.com

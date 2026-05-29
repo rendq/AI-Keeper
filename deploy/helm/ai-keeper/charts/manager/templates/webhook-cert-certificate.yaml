@@ -1,0 +1,28 @@
+{{/*
+cert-manager Certificate for the AIP ValidatingAdmissionWebhook
+(task 2.3).
+
+DNS names match the webhook Service so the API server can verify the
+TLS handshake. The resulting Secret is mounted by the manager
+Deployment (wired in task 3.6) and referenced from the
+ValidatingWebhookConfiguration via `cert-manager.io/inject-ca-from`.
+*/}}
+{{- if .Values.webhook.enabled -}}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Values.webhook.certificate.certificateName }}
+  namespace: {{ .Values.webhook.namespace }}
+  labels:
+    {{- include "manager.labels" . | nindent 4 }}
+spec:
+  secretName: {{ .Values.webhook.certificate.secretName }}
+  duration: {{ .Values.webhook.certificate.duration | default "8760h" }}
+  renewBefore: {{ .Values.webhook.certificate.renewBefore | default "720h" }}
+  issuerRef:
+    name: {{ .Values.webhook.certificate.issuerName }}
+    kind: Issuer
+  dnsNames:
+    - {{ .Values.webhook.serviceName }}.{{ .Values.webhook.namespace }}.svc
+    - {{ .Values.webhook.serviceName }}.{{ .Values.webhook.namespace }}.svc.cluster.local
+{{- end }}

@@ -1,0 +1,17 @@
+# Sub-chart: pep
+# Policy Enforcement Point — invokes PDP and applies obligations
+#
+# Skeleton populated by task 1.3. Real templates are added by the task
+# that owns this component (see tasks.md mapping).
+apiVersion: v2
+name: pep
+description: Policy Enforcement Point — invokes PDP and applies obligations
+type: application
+version: 0.0.1
+appVersion: "0.0.1"
+kubeVersion: ">=1.28.0-0"
+keywords:
+  - aip
+  - pep
+maintainers:
+  - name: The AIP Authors

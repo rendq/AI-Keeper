@@ -1,0 +1,62 @@
+# Gov-Credit Industry Pack — Customizable Values
+# Override these values when installing: aikctl pack install industry/gov-credit --values my-values.yaml
+
+tenant:
+  name: gov-credit-dept
+  adminEmail: gov-credit-admin@example.gov.cn
+  dataResidency:
+    - cn-beijing
+    - cn-gov-cloud
+
+model:
+  # 百川大模型（信创环境私有化部署）
+  baichuanEndpoint: https://baichuan-xinchuang.internal:8443/v1
+  baichuanModel: Baichuan4-Gov
+  baichuanSecretRef: ref://secret/baichuan-xinchuang-key
+  baichuanTpm: 400000
+  baichuanRpm: 2000
+
+  # ChatGLM 大模型（信创环境私有化部署）
+  chatglmEndpoint: https://chatglm-xinchuang.internal:8443/v1
+  chatglmModel: GLM-4-Gov
+  chatglmSecretRef: ref://secret/chatglm-xinchuang-key
+  chatglmTpm: 500000
+  chatglmRpm: 2500
+
+compliance:
+  # 等保三级 (DJCP Level 3)
+  djsanjiEnabled: true
+  # 商用密码应用安全性评估
+  cryptoAssessmentEnabled: true
+  # 国密强制
+  guomiEnforced: true
+
+encryption:
+  # 国密算法配置
+  symmetric: SM4-GCM
+  asymmetric: SM2
+  hash: SM3
+  tlsSuite: ECC_SM4_SM3
+  requireHSM: true
+
+xinchuang:
+  # 信创栈配置
+  osFamily: kylin
+  osVersion: v10
+  cpuArch: arm64
+  cpuType: kunpeng-920
+  database: dameng
+  databaseVersion: v8
+
+knowledgeBase:
+  embeddingModel: ref://model/bge-large-zh-v1.5
+  embeddingDimensions: 1024
+  chunkMaxTokens: 512
+  chunkOverlap: 64
+  syncSchedule: "0 */6 * * *"
+
+images:
+  # 默认镜像仓库（信创认证）
+  registry: registry.xinchuang.gov.cn
+  # 技能镜像 tag 后缀
+  tagSuffix: "-kylin"

@@ -1,0 +1,46 @@
+apiVersion: model.ai-keeper.io/v1alpha1
+kind: ModelRouter
+metadata:
+  name: gov-router
+  namespace: gov-credit-dept
+spec:
+  displayName: 政务信用模型路由
+  alias: reasoner
+  rules:
+    - name: credit-assessment-priority
+      when:
+        expression: "request.skill == 'credit-assessment' && request.priority == 'high'"
+      endpoints:
+        - ref: model://gov-credit-dept/baichuan-xinchuang
+          weight: 100
+      description: 信用评估高优先级请求走百川模型（推理能力强）
+    - name: document-drafting-glm
+      when:
+        expression: "request.skill == 'official-document-drafting'"
+      endpoints:
+        - ref: model://gov-credit-dept/chatglm-xinchuang
+          weight: 70
+        - ref: model://gov-credit-dept/baichuan-xinchuang
+          weight: 30
+      description: 公文起草优先使用 ChatGLM（中文生成能力强）
+    - name: secret-classification
+      when:
+        expression: "request.classification in ['secret', 'top-secret']"
+      endpoints:
+        - ref: model://gov-credit-dept/baichuan-xinchuang
+          weight: 50
+        - ref: model://gov-credit-dept/chatglm-xinchuang
+          weight: 50
+      description: 涉密数据两端负载均衡，确保高可用
+    - name: default-route
+      when:
+        expression: "true"
+      endpoints:
+        - ref: model://gov-credit-dept/chatglm-xinchuang
+          weight: 60
+        - ref: model://gov-credit-dept/baichuan-xinchuang
+          weight: 40
+      description: 默认路由按比例分流
+  cache:
+    enabled: false
+  fallbackBehavior: sequential

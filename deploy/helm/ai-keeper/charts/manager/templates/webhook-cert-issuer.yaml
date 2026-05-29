@@ -1,0 +1,20 @@
+{{/*
+cert-manager Issuer for the AIP ValidatingAdmissionWebhook (task 2.3).
+
+A self-signed Issuer is sufficient because the bundle is consumed only
+by the K8s API server and is injected via cert-manager's
+`cert-manager.io/inject-ca-from` annotation. Production clusters with
+a corporate CA can flip this to a `ClusterIssuer` reference by
+overriding `manager.webhook.certificate.issuerName`.
+*/}}
+{{- if .Values.webhook.enabled -}}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ .Values.webhook.certificate.issuerName }}
+  namespace: {{ .Values.webhook.namespace }}
+  labels:
+    {{- include "manager.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+{{- end }}

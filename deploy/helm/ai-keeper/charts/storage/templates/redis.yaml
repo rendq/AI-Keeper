@@ -1,0 +1,110 @@
+{{- if .Values.redis.enabled }}
+---
+# Redis 7 — rate limiting, session store, budget counters, token blacklist
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "storage.fullname" . }}-redis
+  labels:
+    {{- include "storage.redis.labels" . | nindent 4 }}
+data:
+  redis.conf: |
+    # AIP Redis configuration
+    # P0: single instance. Production: enable cluster mode.
+    port {{ .Values.redis.port }}
+    bind 0.0.0.0
+    protected-mode no
+    maxmemory 200mb
+    maxmemory-policy allkeys-lru
+    # Append-only file for durability of rate counters and blacklist
+    appendonly yes
+    appendfsync everysec
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "storage.fullname" . }}-redis
+  labels:
+    {{- include "storage.redis.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.redis.port }}
+      targetPort: redis
+      protocol: TCP
+      name: redis
+  selector:
+    {{- include "storage.redis.selectorLabels" . | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "storage.fullname" . }}-redis
+  labels:
+    {{- include "storage.redis.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "storage.fullname" . }}-redis
+  replicas: {{ .Values.redis.replicas }}
+  selector:
+    matchLabels:
+      {{- include "storage.redis.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "storage.redis.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: redis
+          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
+          command: ["redis-server", "/etc/redis/redis.conf"]
+          ports:
+            - name: redis
+              containerPort: {{ .Values.redis.port }}
+              protocol: TCP
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/redis
+              readOnly: true
+            {{- if .Values.redis.storage.enabled }}
+            - name: data
+              mountPath: /data
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "storage.fullname" . }}-redis
+  {{- if .Values.redis.storage.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.redis.storage.storageClass }}
+        storageClassName: {{ .Values.redis.storage.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.redis.storage.size }}
+  {{- end }}
+{{- end }}

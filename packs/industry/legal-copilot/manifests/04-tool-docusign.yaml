@@ -1,0 +1,37 @@
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Tool
+metadata:
+  name: docusign-mcp
+  namespace: legal-dept
+spec:
+  displayName: DocuSign MCP Tool
+  protocol: mcp
+  endpoint: mcp://docusign-server:8080
+  description: Retrieve and manage contract documents via DocuSign
+  sideEffects: read_only
+  authentication:
+    mode: oauth2_obo
+    tokenEndpoint: https://account.docusign.com/oauth/token
+    scopes:
+      - signature
+      - extended
+  schema:
+    input:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [get_document, list_envelopes, get_status]
+        envelopeId:
+          type: string
+        documentId:
+          type: string
+    output:
+      type: object
+      properties:
+        content:
+          type: string
+        metadata:
+          type: object
+  rateLimit:
+    requestsPerMinute: 60

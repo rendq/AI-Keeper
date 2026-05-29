@@ -1,0 +1,33 @@
+apiVersion: data.ai-keeper.io/v1alpha1
+kind: KnowledgeBase
+metadata:
+  name: medical-guidelines-kb
+  namespace: healthcare-dept
+spec:
+  displayName: 医学指南与临床知识库
+  sources:
+    - ref: data://healthcare-dept/medical-docs-source
+      sync:
+        schedule: "0 */6 * * *"
+  pipeline:
+    chunking:
+      strategy: semantic
+      maxTokens: 512
+      overlap: 64
+    embedding:
+      ref: model://bge-large-en-v1.5
+      dimensions: 1024
+    enrichment:
+      - pii_tagging
+      - classification_inheritance
+      - entity_extraction
+      - medical_coding
+  retrieval:
+    topK: 15
+    reranker:
+      enabled: true
+      model: ref://model/bge-reranker-v2-m3
+  acl:
+    mode: pre_filter
+    enforcement: pre_filter
+  classification: restricted

@@ -1,0 +1,18 @@
+apiVersion: data.ai-keeper.io/v1alpha1
+kind: DataSource
+metadata:
+  name: legal-kb-source
+  namespace: legal-dept
+spec:
+  displayName: Legal Knowledge Base Source
+  type: connector
+  connector:
+    protocol: mcp
+    endpoint: mcp://legal-docs-connector:9090
+    secretRef: ref://secret/legal-docs-credentials
+  sync:
+    schedule: "0 */6 * * *"
+    mode: incremental
+  classification: confidential
+  acl:
+    inheritFromSource: true

@@ -1,0 +1,17 @@
+# Sub-chart: audit
+# Audit Sink — NATS consumer, ClickHouse + S3 WORM dual-writer
+#
+# Skeleton populated by task 1.3. Real templates are added by the task
+# that owns this component (see tasks.md mapping).
+apiVersion: v2
+name: audit
+description: Audit Sink — NATS consumer, ClickHouse + S3 WORM dual-writer
+type: application
+version: 0.0.1
+appVersion: "0.0.1"
+kubeVersion: ">=1.28.0-0"
+keywords:
+  - aip
+  - audit
+maintainers:
+  - name: The AIP Authors

@@ -1,0 +1,119 @@
+// Copyright 2026 The AIP Authors.
+//
+// Cost Tracker gRPC contract.
+// Implements design.md §7.12 and Requirements A8 (Budget controller),
+// B11 (cost computation), Property 31 (cost calc purity).
+//
+// `Compute()` is a pure function over (usage, pricing) and is safe to call
+// in-process from PEP / Agent Runtime; the gRPC surface exists so that
+// Python / TS callers and the Budget Enforcer sidecar can share a single
+// implementation.
+syntax = "proto3";
+
+package aip.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+// Token counts (mirrors `response.usage` from OpenAI / Anthropic / vLLM).
+message TokenUsage {
+  int32 input_tokens = 1;
+  int32 output_tokens = 2;
+  int32 cached_tokens = 3;
+}
+
+// Pricing snapshot from `ModelEndpoint.spec.cost`. USD strings have 6
+// decimals (Decimal(10,6) compatible).
+message Pricing {
+  string input_usd_per_mtok = 1;
+  string output_usd_per_mtok = 2;
+  string cached_input_usd_per_mtok = 3;
+}
+
+// Budget scope (B11.2 — by tenant / team / user / agent / skill / project).
+enum BudgetScopeKind {
+  BUDGET_SCOPE_KIND_UNSPECIFIED = 0;
+  BUDGET_SCOPE_KIND_TENANT = 1;
+  BUDGET_SCOPE_KIND_TEAM = 2;
+  BUDGET_SCOPE_KIND_USER = 3;
+  BUDGET_SCOPE_KIND_AGENT = 4;
+  BUDGET_SCOPE_KIND_SKILL = 5;
+  BUDGET_SCOPE_KIND_PROJECT = 6;
+}
+
+message BudgetScope {
+  BudgetScopeKind kind = 1;
+  string id = 2;
+  // Period id (e.g. `2026-05` for monthly). Cost Tracker writes
+  // budget:{kind}:{id}:{period_id} in Redis.
+  string period_id = 3;
+}
+
+// Compute -------------------------------------------------------------------
+
+message ComputeRequest {
+  TokenUsage usage = 1;
+  Pricing pricing = 2;
+  google.protobuf.Duration duration = 3;
+}
+
+message ComputeResponse {
+  // 6-decimal USD; equals
+  //   (usage.input × p.input + usage.output × p.output + usage.cached × p.cached) / 1e6
+  string usd = 1;
+  TokenUsage usage = 2;
+  google.protobuf.Duration duration = 3;
+}
+
+// Record --------------------------------------------------------------------
+//
+// Called once per AI invocation by the PEP/Runtime to debit the relevant
+// Redis budget counters (design.md §7.12 step 2).
+
+message RecordRequest {
+  string invocation_id = 1;
+  string tenant_id = 2;
+  // Endpoint that served the call (for per-endpoint dashboards).
+  string endpoint_ref = 3;
+  TokenUsage usage = 4;
+  Pricing pricing = 5;
+  google.protobuf.Duration duration = 6;
+  // All scopes the call should be charged against.
+  repeated BudgetScope scopes = 7;
+  google.protobuf.Timestamp at = 8;
+}
+
+message RecordResponse {
+  // Echo of the computed cost so the caller can verify (Property 31).
+  string usd = 1;
+  // Per-scope updated balance (USD).
+  repeated ScopeBalance balances = 2;
+}
+
+message ScopeBalance {
+  BudgetScope scope = 1;
+  string current_usd = 2;
+  string limit_usd = 3;
+  double burn_rate = 4;
+}
+
+// Query (Console "成本看板") -------------------------------------------------
+
+message BalanceRequest {
+  repeated BudgetScope scopes = 1;
+}
+
+message BalanceResponse {
+  repeated ScopeBalance balances = 1;
+}
+
+service CostService {
+  // Pure cost calculation (Property 31 — same input ⇒ same output, ≥ 0).
+  rpc Compute(ComputeRequest) returns (ComputeResponse);
+
+  // Persist usage + debit Redis budget counters (B11 / A8).
+  rpc Record(RecordRequest) returns (RecordResponse);
+
+  // Read current balance for one or more scopes (Console / aipctl).
+  rpc Balance(BalanceRequest) returns (BalanceResponse);
+}

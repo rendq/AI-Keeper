@@ -1,0 +1,61 @@
+apiVersion: policy.ai-keeper.io/v1alpha1
+kind: Policy
+metadata:
+  name: xinchuang-model-whitelist
+  namespace: gov-credit-dept
+spec:
+  displayName: 信创模型白名单策略
+  description: |
+    仅允许使用经过信创认证、可在国产硬件（鲲鹏/海光）上运行的大模型。
+    禁止使用境外模型 API 及未通过安全审查的模型。
+  effect: deny
+  priority: 8
+  subject:
+    match:
+      - kind: ServiceAccount
+        names:
+          - "*"
+  action:
+    - invoke
+    - query
+  resource:
+    match:
+      - kind: ModelEndpoint
+        names:
+          - "*"
+  conditions:
+    # 仅允许白名单内模型
+    - expression: "request.model.ref in ['model://baichuan-xinchuang', 'model://chatglm-xinchuang']"
+      description: 仅允许使用信创认证白名单模型
+    # 模型必须部署在信创环境
+    - expression: "request.model.deployment.platform.os in ['kylin-v10', 'uos-v20']"
+      description: 模型推理节点必须运行信创操作系统
+    # 模型必须部署在国内
+    - expression: "request.model.deployment.region.startsWith('cn-')"
+      description: 模型部署区域必须在境内
+    # 禁止外部 API 调用
+    - expression: "!request.model.endpoint.startsWith('https://api.openai') && !request.model.endpoint.contains('anthropic')"
+      description: 禁止调用境外模型服务 API
+  constraints:
+    allowedModels:
+      - baichuan-xinchuang
+      - chatglm-xinchuang
+    allowedPlatforms:
+      os:
+        - kylin-v10
+        - uos-v20
+      arch:
+        - arm64
+        - x86_64
+      cpu:
+        - kunpeng-920
+        - hygon-c86-7xxx
+  obligations:
+    audit:
+      level: high
+      includeModelRef: true
+      retentionDays: 180
+    notify:
+      onViolation:
+        - channel: gov-security-center
+          template: xinchuang-model-violation-alert

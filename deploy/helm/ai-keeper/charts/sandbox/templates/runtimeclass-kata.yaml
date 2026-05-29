@@ -1,0 +1,19 @@
+{{- if .Values.kata.enabled }}
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: kata
+  labels:
+    app.kubernetes.io/name: sandbox
+    app.kubernetes.io/component: kata
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+handler: kata
+{{- with .Values.kata.overhead }}
+overhead:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with .Values.kata.scheduling }}
+scheduling:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,19 @@
+# Skill with spec change but version not bumped.
+# Violation: skill/version-bumped
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Skill
+metadata:
+  name: contract-review
+  annotations:
+    ai-keeper.io/previous-version: "1.0.0"
+spec:
+  version: "1.0.0"
+  stability: stable
+  interface:
+    input:
+      schema: '{"type": "object"}'
+    output:
+      schema: '{"type": "object"}'
+  implementation:
+    runtime: python
+    entrypoint: main.py

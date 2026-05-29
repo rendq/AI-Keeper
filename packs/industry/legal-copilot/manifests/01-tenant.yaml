@@ -1,0 +1,19 @@
+apiVersion: core.ai-keeper.io/v1alpha1
+kind: Tenant
+metadata:
+  name: legal-dept
+spec:
+  displayName: Legal Department
+  complianceProfile:
+    standards:
+      - GDPR
+      - SOC2
+    dataResidency:
+      - eu-west-1
+  modelAllowlist:
+    - model://gpt-4o-eu
+  deployment:
+    regions:
+      - eu-west-1
+  admin:
+    email: legal-admin@example.com

@@ -1,0 +1,77 @@
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Skill
+metadata:
+  name: official-document-drafting
+  namespace: gov-credit-dept
+spec:
+  version: "1.0.0"
+  stability: stable
+  interface:
+    input:
+      schema:
+        type: object
+        required:
+          - documentType
+          - subject
+        properties:
+          documentType:
+            type: string
+            enum: [notice, decision, report, letter, minutes, approval]
+            description: 公文类型（通知/决定/报告/函/纪要/批复）
+          subject:
+            type: string
+            description: 公文主题
+          context:
+            type: string
+            description: 背景信息与要点
+          templateRef:
+            type: string
+            description: 公文模板引用
+          urgencyLevel:
+            type: string
+            enum: [normal, urgent, very-urgent]
+            default: normal
+    output:
+      schema:
+        type: object
+        required:
+          - draft
+          - formatCompliance
+        properties:
+          draft:
+            type: string
+            description: 生成的公文草稿
+          formatCompliance:
+            type: object
+            properties:
+              passed:
+                type: boolean
+              violations:
+                type: array
+                items:
+                  type: string
+          suggestions:
+            type: array
+            items:
+              type: string
+  implementation:
+    runtime: python
+    image: registry.xinchuang.gov.cn/aip/skills/official-document-drafting:1.0.0-kylin
+    entrypoint: official_document_drafting:draft
+    requires:
+      models:
+        - alias: reasoner
+          versionConstraint: ">=2024.01"
+      dataSources:
+        - ref: data://gov-credit-dept/gov-policy-kb
+  governance:
+    classification: secret
+    pii:
+      onInput: detect_and_mask
+      onOutput: detect_and_block
+      patternsRef: ref://patterns/gov-pii
+  cost:
+    budget: ref://budget/gov-credit-dept-monthly
+  slo:
+    p95LatencyMs: 8000
+    successRate: 0.95

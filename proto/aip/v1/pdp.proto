@@ -1,0 +1,139 @@
+// Copyright 2026 The AIP Authors.
+//
+// PEP ↔ PDP gRPC contract.
+// Implements design.md §4.2 / §10.2 and Requirements B2.
+//
+// The PEP (Policy Enforcement Point) calls Decide() once per inbound AI
+// invocation; the PDP returns a decision plus an obligation list that the PEP
+// must execute (audit / redact / watermark / notify / require_approval).
+syntax = "proto3";
+
+package aip.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// Common types --------------------------------------------------------------
+
+// Decision verdict. Maps to ClickHouse `policy_decision` enum
+// (see design.md §8.1).
+enum Decision {
+  DECISION_UNSPECIFIED = 0;
+  DECISION_ALLOW = 1;
+  DECISION_DENY = 2;
+  DECISION_REQUIRE_APPROVAL = 3;
+  DECISION_TIMEOUT = 4;
+}
+
+// Five-level data classification (Requirement B4 / A2.5).
+enum Classification {
+  CLASSIFICATION_UNSPECIFIED = 0;
+  CLASSIFICATION_PUBLIC = 1;
+  CLASSIFICATION_INTERNAL = 2;
+  CLASSIFICATION_CONFIDENTIAL = 3;
+  CLASSIFICATION_RESTRICTED = 4;
+  CLASSIFICATION_SECRET = 5;
+}
+
+// Calling principal (user + agent + service-account + channel).
+message Principal {
+  string tenant_id = 1;
+  string user_id = 2;
+  repeated string user_groups = 3;
+  string agent_name = 4;
+  string service_account = 5;
+  string on_behalf_of = 6;
+  string source_ip = 7;
+  string channel = 8;
+  bool mfa = 9;
+  string device_id = 10;
+}
+
+// Action attempted on a resource (e.g. invoke skill / call tool / read kb).
+message Action {
+  string verb = 1;
+  string resource_kind = 2;
+  string resource_name = 3;
+  string method = 4;
+}
+
+// Resource being acted on (target of the decision).
+message Resource {
+  string kind = 1;
+  string namespace = 2;
+  string name = 3;
+  Classification classification = 4;
+  map<string, string> labels = 5;
+}
+
+// Free-form request-time conditions (request_country, time, costSensitive…).
+message Conditions {
+  google.protobuf.Struct attributes = 1;
+}
+
+// One obligation produced by the PDP. Mirrors aip-overview §3 / Policy CR.
+message Obligation {
+  // Kind of obligation: audit / redact / watermark / notify / approval / cache.
+  string kind = 1;
+  // Free-form parameters (e.g. {"level":"high","includePromptHashes":true}).
+  google.protobuf.Struct parameters = 2;
+}
+
+// Decide ---------------------------------------------------------------------
+
+message DecisionRequest {
+  Principal principal = 1;
+  Action action = 2;
+  Resource resource = 3;
+  Conditions conditions = 4;
+
+  // OTel trace correlation (Gateway-injected; B1.5).
+  string trace_id = 10;
+  string invocation_id = 11;
+}
+
+message DecisionResponse {
+  Decision decision = 1;
+  repeated string matched_policies = 2;
+  repeated Obligation obligations = 3;
+  string reason = 4;
+  // Monotonically increasing bundle version in effect at decision time
+  // (design.md §6.3 / Requirement A5.5).
+  int64 bundle_version = 5;
+  google.protobuf.Timestamp evaluated_at = 6;
+}
+
+// Watch ----------------------------------------------------------------------
+
+message BundleSubscribeRequest {
+  // PDP instance identity (used by Policy Controller to track distribution).
+  string pdp_id = 1;
+  // Last bundle hash this PDP has applied (resume from here).
+  string last_bundle_hash = 2;
+}
+
+message BundleEvent {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_PUSH = 1;
+    KIND_RELOAD = 2;
+    KIND_INVALIDATE = 3;
+  }
+  Kind kind = 1;
+  int64 bundle_version = 2;
+  string bundle_hash = 3;
+  // tar.gz blob of compiled Rego/Cedar bundle (design.md §8.5).
+  bytes payload = 4;
+  google.protobuf.Timestamp emitted_at = 5;
+}
+
+// Service --------------------------------------------------------------------
+
+service PolicyDecisionService {
+  // Decide a single inbound action. PEP MUST fail-closed if this RPC times
+  // out within the 1s SLA (Requirement B2.8 / F6).
+  rpc Decide(DecisionRequest) returns (DecisionResponse);
+
+  // Stream new bundle versions to PDP replicas (Requirement A5.5/A5.6).
+  rpc Watch(BundleSubscribeRequest) returns (stream BundleEvent);
+}

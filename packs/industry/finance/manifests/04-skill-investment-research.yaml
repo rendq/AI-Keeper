@@ -1,0 +1,81 @@
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Skill
+metadata:
+  name: investment-research
+  namespace: finance-dept
+spec:
+  version: "1.0.0"
+  stability: stable
+  interface:
+    input:
+      schema:
+        type: object
+        required:
+          - query
+        properties:
+          query:
+            type: string
+            description: 投研问题
+          sector:
+            type: string
+            description: 行业板块
+          timeRange:
+            type: string
+            description: 时间范围（如 3m, 1y）
+          includeFinancials:
+            type: boolean
+            default: true
+    output:
+      schema:
+        type: object
+        required:
+          - analysis
+          - citations
+        properties:
+          analysis:
+            type: string
+            description: 投研分析报告
+          citations:
+            type: array
+            items:
+              type: object
+              properties:
+                source:
+                  type: string
+                title:
+                  type: string
+                date:
+                  type: string
+          riskDisclosure:
+            type: string
+            description: 风险提示（强制生成）
+  implementation:
+    runtime: python
+    image: registry.example.com/aip/skills/investment-research:1.0.0
+    entrypoint: investment_research:research
+    requires:
+      models:
+        - alias: reasoner
+          versionConstraint: ">=2024.01"
+      dataSources:
+        - ref: data://finance-dept/finance-regulations-kb
+  governance:
+    classification: internal
+    pii:
+      onInput: detect_and_mask
+      onOutput: detect_and_block
+      patternsRef: ref://patterns/finance-pii
+  cost:
+    budget: ref://budget/finance-dept-monthly
+  slo:
+    p95LatencyMs: 15000
+    successRate: 0.90
+  evaluation:
+    evalSet: ref://eval/investment-research-v1
+    schedule: "0 3 * * 1"
+    gates:
+      promoteToStable:
+        minScore: 0.80
+        metrics:
+          - accuracy
+          - groundedness

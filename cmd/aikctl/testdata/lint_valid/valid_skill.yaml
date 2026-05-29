@@ -1,0 +1,16 @@
+# A valid Skill that should not trigger any lint errors.
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Skill
+metadata:
+  name: contract-review
+spec:
+  version: "2.0.0"
+  stability: stable
+  interface:
+    input:
+      schema: '{"type": "object"}'
+    output:
+      schema: '{"type": "object"}'
+  implementation:
+    runtime: python
+    entrypoint: main.py

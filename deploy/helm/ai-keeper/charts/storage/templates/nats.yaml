@@ -1,0 +1,190 @@
+{{- if .Values.nats.enabled }}
+---
+# NATS with JetStream — event bus + audit topic
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "storage.fullname" . }}-nats
+  labels:
+    {{- include "storage.nats.labels" . | nindent 4 }}
+data:
+  nats-server.conf: |
+    # AIP NATS Server configuration
+    listen: 0.0.0.0:{{ .Values.nats.clientPort }}
+    http: 0.0.0.0:{{ .Values.nats.monitorPort }}
+
+    {{- if .Values.nats.jetstream.enabled }}
+    jetstream {
+      store_dir: /data/jetstream
+      max_mem: {{ .Values.nats.jetstream.memStorage }}
+      max_file: {{ .Values.nats.jetstream.fileStorage }}
+    }
+    {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "storage.fullname" . }}-nats
+  labels:
+    {{- include "storage.nats.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.nats.clientPort }}
+      targetPort: client
+      protocol: TCP
+      name: client
+    - port: {{ .Values.nats.monitorPort }}
+      targetPort: monitor
+      protocol: TCP
+      name: monitor
+  selector:
+    {{- include "storage.nats.selectorLabels" . | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "storage.fullname" . }}-nats
+  labels:
+    {{- include "storage.nats.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "storage.fullname" . }}-nats
+  replicas: {{ .Values.nats.replicas }}
+  selector:
+    matchLabels:
+      {{- include "storage.nats.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "storage.nats.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: init-jetstream-dir
+          image: "{{ .Values.nats.image.repository }}:{{ .Values.nats.image.tag }}"
+          command: ["sh", "-c", "mkdir -p /data/jetstream"]
+          volumeMounts:
+            {{- if .Values.nats.storage.enabled }}
+            - name: data
+              mountPath: /data
+            {{- else }}
+            - name: data-ephemeral
+              mountPath: /data
+            {{- end }}
+      containers:
+        - name: nats
+          image: "{{ .Values.nats.image.repository }}:{{ .Values.nats.image.tag }}"
+          imagePullPolicy: {{ .Values.nats.image.pullPolicy }}
+          args:
+            - "--config"
+            - "/etc/nats/nats-server.conf"
+          ports:
+            - name: client
+              containerPort: {{ .Values.nats.clientPort }}
+              protocol: TCP
+            - name: monitor
+              containerPort: {{ .Values.nats.monitorPort }}
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: monitor
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: monitor
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.nats.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nats
+              readOnly: true
+            {{- if .Values.nats.storage.enabled }}
+            - name: data
+              mountPath: /data
+            {{- else }}
+            - name: data-ephemeral
+              mountPath: /data
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "storage.fullname" . }}-nats
+        {{- if not .Values.nats.storage.enabled }}
+        - name: data-ephemeral
+          emptyDir:
+            sizeLimit: {{ .Values.nats.jetstream.fileStorage }}
+        {{- end }}
+  {{- if .Values.nats.storage.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.nats.storage.storageClass }}
+        storageClassName: {{ .Values.nats.storage.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.nats.storage.size }}
+  {{- end }}
+---
+# Job to create JetStream streams after NATS is ready
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "storage.fullname" . }}-nats-setup
+  labels:
+    {{- include "storage.nats.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "storage.nats.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: nats-setup
+          image: natsio/nats-box:0.14
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              NATS_URL="nats://{{ include "storage.fullname" . }}-nats:{{ .Values.nats.clientPort }}"
+              echo "Waiting for NATS to be ready..."
+              until nats --server="$NATS_URL" server ping 2>/dev/null; do
+                sleep 2
+              done
+              echo "NATS is ready. Creating streams..."
+              {{- range .Values.nats.streams }}
+              echo "Creating stream {{ .name }}..."
+              nats --server="$NATS_URL" stream add {{ .name }} \
+                --subjects="{{ join "," .subjects }}" \
+                --retention={{ .retention }} \
+                --max-age={{ .maxAge }} \
+                --storage={{ .storage }} \
+                --replicas={{ .replicas }} \
+                --discard=old \
+                --no-allow-rollup \
+                --defaults \
+                2>/dev/null || nats --server="$NATS_URL" stream info {{ .name }}
+              {{- end }}
+              echo "Stream setup complete."
+{{- end }}

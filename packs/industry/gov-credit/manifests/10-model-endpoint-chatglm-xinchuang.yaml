@@ -1,0 +1,46 @@
+apiVersion: model.ai-keeper.io/v1alpha1
+kind: ModelEndpoint
+metadata:
+  name: chatglm-xinchuang
+  namespace: gov-credit-dept
+spec:
+  displayName: ChatGLM 大模型（信创环境私有化部署）
+  provider: zhipu
+  model: GLM-4-Gov
+  endpoint: https://chatglm-xinchuang.internal:8443/v1
+  region: cn-beijing
+  secretRef: ref://secret/chatglm-xinchuang-key
+  compliance:
+    standards:
+      - DJCP-L3
+      - XINCHUANG
+    dataResidency: cn-beijing
+    privacy:
+      dpaSigned: true
+      dataRetention: none
+    encryption:
+      inTransit: SM4-GCM
+      atRest: SM4-GCM
+      keyExchange: SM2
+  deployment:
+    platform:
+      os: kylin-v10
+      arch: arm64
+      cpu: kunpeng-920
+    runtime: vllm
+    accelerator: ascend-910b
+    replicas: 2
+  cost:
+    input: 12.00
+    output: 40.00
+    cached: 6.00
+    currency: CNY
+    unit: per_million_tokens
+  limits:
+    tpm: 500000
+    rpm: 2500
+  fallback:
+    - ref: model://gov-credit-dept/baichuan-xinchuang
+  health:
+    probeInterval: 30s
+    timeout: 5s

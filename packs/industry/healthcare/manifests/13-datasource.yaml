@@ -1,0 +1,18 @@
+apiVersion: data.ai-keeper.io/v1alpha1
+kind: DataSource
+metadata:
+  name: medical-docs-source
+  namespace: healthcare-dept
+spec:
+  displayName: 医疗文档数据源
+  type: connector
+  connector:
+    protocol: mcp
+    endpoint: mcp://medical-docs-connector:9090
+    secretRef: ref://secret/medical-docs-credentials
+  sync:
+    schedule: "0 */6 * * *"
+    mode: incremental
+  classification: restricted
+  acl:
+    inheritFromSource: true

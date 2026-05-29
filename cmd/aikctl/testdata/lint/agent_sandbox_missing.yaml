@@ -1,0 +1,29 @@
+# Agent with pattern=react using a code tool but no sandbox enabled.
+# Violation: agent/sandbox-required
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Tool
+metadata:
+  name: code-executor
+spec:
+  protocol: mcp
+  endpoint: "http://code-runner:8080"
+  schema:
+    input: '{"type": "object"}'
+    output: '{"type": "object"}'
+  governance:
+    sideEffects: write
+---
+apiVersion: agent.ai-keeper.io/v1alpha1
+kind: Agent
+metadata:
+  name: react-code-agent
+spec:
+  displayName: "React Code Agent"
+  identity:
+    serviceAccount: default-sa
+  skills:
+    - ref: "skill://code-executor@^1.0.0"
+  runtime:
+    pattern: react
+    sandbox:
+      enabled: false

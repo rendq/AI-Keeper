@@ -1,0 +1,105 @@
+# Gov-Credit Industry Pack — 海光 CPU (x86_64) 适配 Values
+# 适用于：银河麒麟 V10 / UOS V20 + 海光 C86-7xxx (x86_64) 环境
+# Usage: helm template --values packs/gov-credit/values-haiguang.yaml
+
+xinchuang:
+  osFamily: kylin
+  osVersion: v10
+  cpuArch: x86_64
+  cpuType: hygon-c86-7xxx
+  accelerator: dcu-z100
+  database: oceanbase
+  databaseVersion: v4
+  # 备选数据库
+  alternativeDatabase: dameng
+  alternativeDatabaseVersion: v8
+
+images:
+  registry: registry.xinchuang.gov.cn
+  tagSuffix: "-kylin-x86"
+  # 海光 x86_64 镜像
+  skills:
+    officialDocumentDrafting: registry.xinchuang.gov.cn/aip/skills/official-document-drafting:1.0.0-kylin-x86
+    policyQa: registry.xinchuang.gov.cn/aip/skills/policy-qa:1.0.0-kylin-x86
+    creditAssessment: registry.xinchuang.gov.cn/aip/skills/credit-assessment:1.0.0-kylin-x86
+  inference:
+    vllm: registry.xinchuang.gov.cn/aip/inference/vllm:0.4.0-kylin-x86-dcu
+    triton: registry.xinchuang.gov.cn/aip/inference/triton:24.01-kylin-x86-dcu
+  platform:
+    gateway: registry.xinchuang.gov.cn/aip/gateway:1.0.0-kylin-x86
+    controller: registry.xinchuang.gov.cn/aip/controller:1.0.0-kylin-x86
+    pdp: registry.xinchuang.gov.cn/aip/pdp:1.0.0-kylin-x86
+
+model:
+  baichuanEndpoint: https://baichuan-xinchuang.internal:8443/v1
+  baichuanModel: Baichuan4-Gov
+  baichuanDeployment:
+    platform:
+      os: kylin-v10
+      arch: x86_64
+      cpu: hygon-c86-7xxx
+    runtime: vllm
+    accelerator: dcu-z100
+    replicas: 2
+    resources:
+      gpu: 4
+      memory: 64Gi
+
+  chatglmEndpoint: https://chatglm-xinchuang.internal:8443/v1
+  chatglmModel: GLM-4-Gov
+  chatglmDeployment:
+    platform:
+      os: kylin-v10
+      arch: x86_64
+      cpu: hygon-c86-7xxx
+    runtime: vllm
+    accelerator: dcu-z100
+    replicas: 2
+    resources:
+      gpu: 4
+      memory: 64Gi
+
+database:
+  # OceanBase 数据库配置（海光环境首选）
+  type: oceanbase
+  host: ob-cluster.internal
+  port: 2881
+  name: aip_gov_credit
+  secretRef: ref://secret/oceanbase-credentials
+  ssl:
+    enabled: true
+    cipher: SM4-GCM
+    certRef: ref://secret/oceanbase-sm2-cert
+  # 达梦备用配置
+  fallback:
+    type: dameng
+    host: dm-cluster.internal
+    port: 5236
+    name: aip_gov_credit
+    secretRef: ref://secret/dameng-credentials
+    ssl:
+      enabled: true
+      cipher: SM4-GCM
+
+storage:
+  type: s3-compatible
+  endpoint: https://oss-gov.internal:9000
+  encryption:
+    algorithm: SM4-GCM
+    keyManagement: SM2
+  vectorDb:
+    type: milvus
+    host: milvus-haiguang.internal
+    port: 19530
+    encryption: SM4-GCM
+
+networking:
+  tls:
+    suite: ECC_SM4_SM3
+    minVersion: "GMTLS1.1"
+    certificateAuthority: gov-ca
+    certRef: ref://secret/gmtls-cert
+  ingress:
+    className: nginx-haiguang
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-ciphers: "ECC_SM4_SM3"

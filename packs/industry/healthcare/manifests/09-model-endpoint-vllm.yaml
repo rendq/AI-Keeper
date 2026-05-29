@@ -1,0 +1,53 @@
+apiVersion: model.ai-keeper.io/v1alpha1
+kind: ModelEndpoint
+metadata:
+  name: vllm-medical
+  namespace: healthcare-dept
+spec:
+  displayName: vLLM Medical (On-Premise)
+  provider: on-premise
+  model: medical-llama-70b
+  endpoint: https://vllm-medical.internal:8000/v1
+  region: us-east-1
+  secretRef: ref://secret/vllm-medical-key
+  deployment:
+    type: on-premise
+    runtime: vllm
+    config:
+      tensorParallelSize: 4
+      gpuMemoryUtilization: 0.90
+      maxModelLen: 32768
+      quantization: awq
+      dtype: float16
+    resources:
+      gpu:
+        type: A100
+        count: 4
+      memory: 320Gi
+    replicas: 2
+  compliance:
+    standards:
+      - HIPAA
+      - HITECH
+    dataResidency: us-east-1
+    privacy:
+      dpaSigned: true
+      dataRetention: none
+      noExternalTransmission: true
+  cost:
+    input: 0.00
+    output: 0.00
+    cached: 0.00
+    currency: USD
+    unit: per_million_tokens
+    infrastructure:
+      monthly: 15000.00
+      currency: USD
+  limits:
+    tpm: 400000
+    rpm: 2000
+  fallback:
+    - ref: model://healthcare-dept/tgi-medical
+  health:
+    probeInterval: 15s
+    timeout: 5s

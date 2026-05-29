@@ -1,0 +1,103 @@
+# Default values for the AIP storage sub-chart.
+# Deploys PostgreSQL 16 + Redis 7 + NATS JetStream for local/kind usage.
+---
+# Toggle controlled by the parent chart (`storage.enabled` at top level).
+enabled: true
+
+nameOverride: ""
+fullnameOverride: ""
+
+# --- PostgreSQL 16 -----------------------------------------------------------
+postgresql:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "16-alpine"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  port: 5432
+  database: aip
+  username: aip
+  # For P0/kind only. Production should use a Secret reference.
+  password: aik-dev-password
+  storage:
+    enabled: false
+    size: 1Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# --- Redis 7 -----------------------------------------------------------------
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7-alpine"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  port: 6379
+  # P0: single instance. Production: cluster mode with 6+ nodes.
+  clusterMode: false
+  storage:
+    enabled: false
+    size: 512Mi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+# --- NATS JetStream -----------------------------------------------------------
+nats:
+  enabled: true
+  image:
+    repository: nats
+    tag: "2.10-alpine"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  clientPort: 4222
+  monitorPort: 8222
+  jetstream:
+    enabled: true
+    memStorage: 256Mi
+    fileStorage: 1Gi
+  # Streams provisioned on startup via nats-box init container.
+  streams:
+    - name: AUDIT
+      subjects:
+        - "audit.>"
+      retention: limits
+      maxAge: 168h  # 7 days
+      storage: file
+      replicas: 1
+    - name: EVENTS
+      subjects:
+        - "events.>"
+      retention: limits
+      maxAge: 24h
+      storage: memory
+      replicas: 1
+  storage:
+    enabled: false
+    size: 1Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 512Mi
+
+# Common settings
+nodeSelector: {}
+tolerations: []
+affinity: {}

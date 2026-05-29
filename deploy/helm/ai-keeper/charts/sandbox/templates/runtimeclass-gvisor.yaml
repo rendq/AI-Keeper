@@ -1,0 +1,19 @@
+{{- if .Values.gvisor.enabled }}
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: gvisor
+  labels:
+    app.kubernetes.io/name: sandbox
+    app.kubernetes.io/component: gvisor
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+handler: runsc
+{{- with .Values.gvisor.overhead }}
+overhead:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with .Values.gvisor.scheduling }}
+scheduling:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end }}

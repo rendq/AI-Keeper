@@ -1,0 +1,28 @@
+# Skill fixture used by the verification command in tasks.md 2.3:
+#   kubectl --context=kind apply -f testdata/admission/invalid_skill.yaml
+#
+# Expected outcome: the API server (forwarded to the AIP webhook) rejects
+# the resource with HTTP 422 because
+# `spec.implementation.requires.tools[0].ref` is not a valid ResourceRef
+# (Requirement A2.1).
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Skill
+metadata:
+  name: invalid-skill
+  namespace: default
+spec:
+  version: 1.0.0
+  stability: beta
+  interface:
+    input:
+      schema:
+        type: object
+    output:
+      schema:
+        type: object
+  implementation:
+    type: function
+    requires:
+      tools:
+        # ❌ ResourceRef is malformed — missing scheme://path shape.
+        - ref: not-a-valid-ref

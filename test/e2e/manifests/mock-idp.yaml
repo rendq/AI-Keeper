@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-idp
+  namespace: aik-system
+  labels:
+    app: mock-idp
+    app.kubernetes.io/part-of: aip
+    app.kubernetes.io/component: mock-idp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-idp
+  template:
+    metadata:
+      labels:
+        app: mock-idp
+        app.kubernetes.io/part-of: aip
+        app.kubernetes.io/component: mock-idp
+    spec:
+      containers:
+        - name: mock-idp
+          image: mock-idp:e2e
+          ports:
+            - containerPort: 8081
+              name: http
+          env:
+            - name: PORT
+              value: "8081"
+            - name: ISSUER_URL
+              value: "http://mock-idp.aik-system.svc.cluster.local"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-idp
+  namespace: aik-system
+  labels:
+    app: mock-idp
+    app.kubernetes.io/part-of: aip
+spec:
+  selector:
+    app: mock-idp
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http

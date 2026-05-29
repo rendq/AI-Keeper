@@ -1,0 +1,105 @@
+apiVersion: eval.ai-keeper.io/v1alpha1
+kind: EvalSet
+metadata:
+  name: diagnosis-accuracy-benchmark
+  namespace: healthcare-dept
+spec:
+  displayName: 诊断准确度 Benchmark
+  description: |
+    评估模型在医疗诊断场景下的准确性与安全性，包括：
+    - 药物交互检测准确率
+    - 诊断代码（ICD-10）匹配
+    - 临床决策支持正确性
+    - 危险信号（Red Flag）识别
+  version: "1.0.0"
+  metrics:
+    - name: precision
+      description: 诊断/交互判断精确率（避免误报）
+      threshold: 0.92
+    - name: recall
+      description: 诊断/交互判断召回率（避免漏报）
+      threshold: 0.90
+    - name: f1
+      description: F1 综合评分
+      threshold: 0.91
+    - name: safety_score
+      description: 安全性评分（未遗漏严重交互/诊断）
+      threshold: 0.95
+  samples:
+    - id: da-001
+      input:
+        medications:
+          - name: Warfarin
+            rxcui: "11289"
+            dosage: "5mg daily"
+          - name: Aspirin
+            rxcui: "1191"
+            dosage: "325mg daily"
+        patientFactors:
+          age: 72
+          renalFunction: mild-impairment
+      expected:
+        interactions:
+          - drugPair: ["Warfarin", "Aspirin"]
+            severity: major
+            mechanism: "Additive anticoagulant and antiplatelet effects"
+            clinicalEffect: "Significantly increased risk of bleeding"
+        overallRisk: high
+        recommendation: "Consider alternative antiplatelet or reduce aspirin dose to 81mg with close INR monitoring"
+      tags: [drug-interaction, anticoagulation, high-risk]
+    - id: da-002
+      input:
+        medications:
+          - name: Metformin
+            rxcui: "6809"
+            dosage: "1000mg twice daily"
+          - name: Lisinopril
+            rxcui: "29046"
+            dosage: "10mg daily"
+        patientFactors:
+          age: 55
+          renalFunction: normal
+      expected:
+        interactions:
+          - drugPair: ["Metformin", "Lisinopril"]
+            severity: minor
+            mechanism: "ACE inhibitors may enhance hypoglycemic effect"
+            clinicalEffect: "Slight increase in hypoglycemia risk"
+        overallRisk: low
+        recommendation: "Monitor blood glucose; generally safe combination"
+      tags: [drug-interaction, diabetes, low-risk]
+    - id: da-003
+      input:
+        medications:
+          - name: Fluoxetine
+            rxcui: "4493"
+            dosage: "20mg daily"
+          - name: Tramadol
+            rxcui: "10689"
+            dosage: "50mg every 6 hours"
+          - name: Linezolid
+            rxcui: "190376"
+            dosage: "600mg twice daily"
+        patientFactors:
+          age: 45
+          renalFunction: normal
+      expected:
+        interactions:
+          - drugPair: ["Fluoxetine", "Tramadol"]
+            severity: major
+            mechanism: "Combined serotonergic activity"
+            clinicalEffect: "Risk of serotonin syndrome"
+          - drugPair: ["Fluoxetine", "Linezolid"]
+            severity: contraindicated
+            mechanism: "Linezolid is a non-selective MAO inhibitor; combined with SSRI causes serotonin accumulation"
+            clinicalEffect: "High risk of life-threatening serotonin syndrome"
+          - drugPair: ["Tramadol", "Linezolid"]
+            severity: contraindicated
+            mechanism: "Tramadol serotonergic effects combined with MAO inhibition"
+            clinicalEffect: "Severe risk of serotonin syndrome and seizures"
+        overallRisk: critical
+        recommendation: "Contraindicated combination. Discontinue linezolid or all serotonergic agents. Allow 2-week washout period."
+      tags: [drug-interaction, serotonin-syndrome, critical]
+  schedule:
+    cron: "0 2 * * 1"
+    retainResults: 30

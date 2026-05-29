@@ -1,0 +1,35 @@
+apiVersion: model.ai-keeper.io/v1alpha1
+kind: ModelRouter
+metadata:
+  name: healthcare-router
+  namespace: healthcare-dept
+spec:
+  displayName: 医疗业务模型路由
+  alias: reasoner
+  rules:
+    - name: drug-interaction-high-accuracy
+      when:
+        expression: "request.skill == 'drug-interaction-check'"
+      endpoints:
+        - ref: model://healthcare-dept/vllm-medical
+          weight: 100
+      description: 药物交互检查强制使用大参数模型（高准确度要求）
+    - name: record-summary-large-context
+      when:
+        expression: "request.skill == 'medical-record-summary' && request.inputTokens > 8192"
+      endpoints:
+        - ref: model://healthcare-dept/vllm-medical
+          weight: 100
+      description: 长文本病历摘要使用大参数模型（长上下文窗口）
+    - name: default-route
+      when:
+        expression: "true"
+      endpoints:
+        - ref: model://healthcare-dept/vllm-medical
+          weight: 60
+        - ref: model://healthcare-dept/tgi-medical
+          weight: 40
+      description: 默认按比例分流（vLLM 60% / TGI 40%）
+  cache:
+    enabled: false
+  fallbackBehavior: sequential

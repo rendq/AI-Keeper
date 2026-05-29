@@ -1,0 +1,3 @@
+# Contract Review Skill dependencies
+# The AIP Skill SDK (dataplane.skillruntime) is provided by the base runtime image.
+# This skill only uses stdlib modules (hashlib, time, uuid) beyond the SDK.

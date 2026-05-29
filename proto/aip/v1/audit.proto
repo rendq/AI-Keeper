@@ -1,0 +1,155 @@
+// Copyright 2026 The AIP Authors.
+//
+// Audit Sink gRPC contract.
+// Implements design.md §7.11 / §8.1 / §10.2 and Requirements B12, F4, F5,
+// F22 (audit completeness, immutability, eventHash).
+//
+// This is the canonical wire format for AuditEvent. The Audit Sink dual-
+// writes to ClickHouse (real-time query) and S3 + Object Lock (WORM, 7-year
+// retention). `event_hash` MUST equal sha256(canonical(spec)) per RFC 8785
+// (Property 10).
+syntax = "proto3";
+
+package aip.v1;
+
+import "aip/v1/pdp.proto";
+import "aip/v1/runtime.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+enum OutcomeStatus {
+  OUTCOME_STATUS_UNSPECIFIED = 0;
+  OUTCOME_STATUS_SUCCESS = 1;
+  OUTCOME_STATUS_ERROR = 2;
+  OUTCOME_STATUS_TIMEOUT = 3;
+  OUTCOME_STATUS_BLOCKED = 4;
+  OUTCOME_STATUS_PARTIAL = 5;
+}
+
+// Cost block (B11.1 / Property 31). Exactly mirrors the formula:
+//   usd = (tokens_in × inputUsdPerMTok
+//        + tokens_out × outputUsdPerMTok
+//        + tokens_cached × cachedInputUsdPerMTok) / 1e6
+message CostBlock {
+  int32 tokens_input = 1;
+  int32 tokens_output = 2;
+  int32 tokens_cached = 3;
+  // USD with 6 decimal precision; same representation as ClickHouse
+  // Decimal(10, 6) (design.md §8.1).
+  string usd = 4;
+  google.protobuf.Duration duration = 5;
+}
+
+// What the PEP did with the request (mirrors aip-overview.md §3 schema).
+message RequestBlock {
+  // sha256 of canonical input (raw text NEVER persisted unless audit level
+  // says so).
+  string input_hash = 1;
+  Classification classification = 2;
+  // PII categories that were redacted (types only — never values; B4.5).
+  repeated string redactions = 3;
+  uint32 size_bytes = 4;
+}
+
+message ResponseBlock {
+  string output_hash = 1;
+  repeated string citations = 2;
+  Classification classification = 3;
+  uint32 size_bytes = 4;
+}
+
+message PolicyDecisionBlock {
+  Decision decision = 1;
+  repeated string matched_policies = 2;
+  string reason = 3;
+  repeated string obligations_applied = 4;
+  string approval_id = 5;
+  int64 bundle_version = 6;
+}
+
+message GuardrailBlock {
+  repeated string triggered = 1;
+  bool blocked = 2;
+}
+
+message ComplianceBlock {
+  // Compliance tags of the originating tenant + skill (gdpr / hipaa / 等保3 …).
+  repeated string tags = 1;
+  // Region the data resided in.
+  string data_residency = 2;
+  // Active legal holds (suppress retention TTL while non-empty;
+  // see design.md §8.1 TTL clause).
+  repeated string holds = 3;
+}
+
+message OutcomeBlock {
+  OutcomeStatus status = 1;
+  string error_code = 2;
+  string error_message = 3;
+}
+
+// One audit record. There is exactly one record per invocation
+// (Property 8 — audit completeness invariant).
+message AuditEvent {
+  // Top-level identity.
+  string invocation_id = 1;
+  // Optional sub-step id (for fan-out events emitted alongside the main
+  // record). When step_id == "", this is the root invocation event.
+  string step_id = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  string tenant_id = 4;
+  string namespace = 5;
+
+  Principal principal = 10;
+  Action action = 11;
+  RequestBlock request = 12;
+  ResponseBlock response = 13;
+  PolicyDecisionBlock policy = 14;
+  GuardrailBlock guardrails = 15;
+  CostBlock cost = 16;
+  ComplianceBlock compliance = 17;
+  OutcomeBlock outcome = 18;
+  // Per-step events (full Agent Runtime trace; B5.6).
+  repeated Step steps = 19;
+
+  // OTel correlation.
+  string trace_id = 30;
+  string span_id = 31;
+
+  // Hash of the canonical spec; emitted by the Audit Sink and verified on
+  // read (Property 10).
+  string event_hash = 40;
+  // Pointer to the full WORM blob (S3 URI, Object-Lock retained).
+  string raw_object_uri = 41;
+}
+
+message EmitRequest {
+  AuditEvent event = 1;
+}
+
+message EmitResponse {
+  bool accepted = 1;
+  // Echoed back so the producer can verify; MUST equal the value computed
+  // by the producer.
+  string event_hash = 2;
+  string raw_object_uri = 3;
+}
+
+// Streaming query against the WORM/CH store (admin / Console BFF / SIEM).
+message QueryRequest {
+  // ClickHouse SQL subset (SELECT only). The audit query service rejects
+  // any other statement (D1.5).
+  string sql = 1;
+  // Optional max rows (Console default 1000; A10.6).
+  int32 limit = 2;
+  string tenant_id = 3;
+}
+
+service AuditSinkService {
+  // Emit one AuditEvent. Producer-side at-least-once; Sink-side dedup by
+  // (invocation_id, step_id) (B12 / F22).
+  rpc Emit(EmitRequest) returns (EmitResponse);
+
+  // Server-streamed query. Read-only (Property 9 — immutability).
+  rpc Query(QueryRequest) returns (stream AuditEvent);
+}

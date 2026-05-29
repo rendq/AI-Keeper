@@ -1,0 +1,14 @@
+# Agent referencing a skill that doesn't exist in the resource set.
+# Violation: agent/skills-resolved
+apiVersion: agent.ai-keeper.io/v1alpha1
+kind: Agent
+metadata:
+  name: bad-agent
+spec:
+  displayName: "Bad Agent"
+  identity:
+    serviceAccount: default-sa
+  skills:
+    - ref: "skill://nonexistent-skill@^1.0.0"
+  runtime:
+    pattern: tool_calling

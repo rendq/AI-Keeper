@@ -1,0 +1,43 @@
+# Finance Industry Pack — Customizable Values
+# Override these values when installing: aikctl pack install industry/finance --values my-values.yaml
+
+tenant:
+  name: finance-dept
+  adminEmail: finance-admin@example.com
+  dataResidency:
+    - cn-shanghai
+    - cn-beijing
+
+model:
+  # 通义千问 (Tongyi Qwen) — 阿里云 DashScope 兼容接口
+  tongyiEndpoint: https://dashscope.aliyuncs.com/compatible-mode/v1
+  tongyiModel: qwen-max
+  tongyiSecretRef: ref://secret/tongyi-api-key
+  tongyiTpm: 500000
+  tongyiRpm: 3000
+
+  # 百川私有化部署 — 企业内网 vLLM 推理服务
+  baichuanEndpoint: https://baichuan-private.internal:8443/v1
+  baichuanModel: Baichuan4-Finance
+  baichuanSecretRef: ref://secret/baichuan-private-key
+  baichuanTpm: 300000
+  baichuanRpm: 2000
+
+compliance:
+  # 等保三级 (DJCP Level 3) 强制策略
+  djsanjiEnabled: true
+  # 投研人审 (Human-in-the-Loop for Investment Research)
+  investmentHitlEnabled: true
+  # 数据分级
+  dataClassificationEnabled: true
+
+knowledgeBase:
+  embeddingModel: ref://model/bge-large-zh-v1.5
+  embeddingDimensions: 1024
+  chunkMaxTokens: 512
+  chunkOverlap: 64
+  syncSchedule: "0 */4 * * *"
+
+evaluation:
+  schedule: "0 3 * * 1"
+  minScore: 0.80

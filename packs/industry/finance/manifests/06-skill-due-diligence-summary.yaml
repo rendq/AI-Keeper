@@ -1,0 +1,94 @@
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Skill
+metadata:
+  name: due-diligence-summary
+  namespace: finance-dept
+spec:
+  version: "1.0.0"
+  stability: stable
+  interface:
+    input:
+      schema:
+        type: object
+        required:
+          - targetEntity
+          - scope
+        properties:
+          targetEntity:
+            type: string
+            description: 尽调目标（公司名或项目名）
+          scope:
+            type: string
+            enum: [full, financial, legal, operational]
+            description: 尽调范围
+          documents:
+            type: array
+            items:
+              type: string
+            description: 已上传文档 ID 列表
+    output:
+      schema:
+        type: object
+        required:
+          - summary
+          - keyFindings
+        properties:
+          summary:
+            type: string
+            description: 尽调摘要
+          keyFindings:
+            type: array
+            items:
+              type: object
+              properties:
+                category:
+                  type: string
+                finding:
+                  type: string
+                riskLevel:
+                  type: string
+                  enum: [high, medium, low]
+          redFlags:
+            type: array
+            items:
+              type: string
+            description: 红旗事项列表
+          citations:
+            type: array
+            items:
+              type: object
+              properties:
+                source:
+                  type: string
+                page:
+                  type: integer
+  implementation:
+    runtime: python
+    image: registry.example.com/aip/skills/due-diligence-summary:1.0.0
+    entrypoint: due_diligence:summarize
+    requires:
+      models:
+        - alias: reasoner
+          versionConstraint: ">=2024.01"
+      dataSources:
+        - ref: data://finance-dept/finance-regulations-kb
+  governance:
+    classification: confidential
+    pii:
+      onInput: detect_and_mask
+      onOutput: detect_and_block
+      patternsRef: ref://patterns/finance-pii
+  cost:
+    budget: ref://budget/finance-dept-monthly
+  slo:
+    p95LatencyMs: 20000
+    successRate: 0.90
+  evaluation:
+    evalSet: ref://eval/due-diligence-v1
+    schedule: "0 3 * * 1"
+    gates:
+      promoteToStable:
+        minScore: 0.80
+        metrics:
+          - accuracy
+          - completeness

@@ -1,0 +1,11 @@
+# Files matched by these patterns are excluded from `helm package`.
+.DS_Store
+.git/
+.gitignore
+.idea/
+.vscode/
+*.bak
+*.swp
+*.tmp
+*.tgz
+README.md.tmpl

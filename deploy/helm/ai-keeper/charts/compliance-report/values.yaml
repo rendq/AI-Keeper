@@ -1,0 +1,66 @@
+# Default values for the compliance-report sub-chart.
+---
+enabled: false
+
+nameOverride: ""
+fullnameOverride: ""
+
+# CronJob schedule: monthly on the 1st at 02:00 UTC
+schedule: "0 2 1 * *"
+
+# Report types to generate each run
+reports:
+  gdpr: true
+  soc2: true
+  hipaa: true
+  djSanji: true  # 等保三级
+
+image:
+  repository: aip/compliance-report
+  tag: ""
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# S3 destination for generated reports
+s3:
+  bucket: "aip-compliance-reports"
+  prefix: "monthly/"
+  region: "us-east-1"
+
+# Notification settings
+notification:
+  channel: "compliance-officer"
+  # Set to false to skip notification after report generation
+  enabled: true
+
+# ClickHouse connection (audit data source)
+clickhouse:
+  host: "clickhouse.aik-system.svc.cluster.local"
+  port: "9000"
+  database: "aip_audit"
+  # Reference to a Secret for credentials
+  secretName: "clickhouse-credentials"
+  secretUserKey: "username"
+  secretPasswordKey: "password"
+
+# Job configuration
+job:
+  backoffLimit: 3
+  activeDeadlineSeconds: 3600
+  ttlSecondsAfterFinished: 86400
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 2Gi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

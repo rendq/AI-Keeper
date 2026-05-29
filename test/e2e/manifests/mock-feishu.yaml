@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-feishu
+  namespace: aik-system
+  labels:
+    app: mock-feishu
+    app.kubernetes.io/part-of: aip
+    app.kubernetes.io/component: mock-feishu
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-feishu
+  template:
+    metadata:
+      labels:
+        app: mock-feishu
+        app.kubernetes.io/part-of: aip
+        app.kubernetes.io/component: mock-feishu
+    spec:
+      containers:
+        - name: mock-feishu
+          image: mock-feishu:e2e
+          ports:
+            - containerPort: 8082
+              name: http
+          env:
+            - name: PORT
+              value: "8082"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-feishu
+  namespace: aik-system
+  labels:
+    app: mock-feishu
+    app.kubernetes.io/part-of: aip
+spec:
+  selector:
+    app: mock-feishu
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http

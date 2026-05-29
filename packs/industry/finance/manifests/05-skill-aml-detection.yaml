@@ -1,0 +1,88 @@
+apiVersion: skill.ai-keeper.io/v1alpha1
+kind: Skill
+metadata:
+  name: aml-detection
+  namespace: finance-dept
+spec:
+  version: "1.0.0"
+  stability: stable
+  interface:
+    input:
+      schema:
+        type: object
+        required:
+          - transactionId
+        properties:
+          transactionId:
+            type: string
+            description: 交易流水号
+          customerIds:
+            type: array
+            items:
+              type: string
+            description: 关联客户 ID 列表
+          checkType:
+            type: string
+            enum: [realtime, batch, retrospective]
+            default: realtime
+    output:
+      schema:
+        type: object
+        required:
+          - riskScore
+          - decision
+        properties:
+          riskScore:
+            type: number
+            minimum: 0
+            maximum: 100
+            description: 风险评分 (0-100)
+          decision:
+            type: string
+            enum: [pass, review, block]
+          alerts:
+            type: array
+            items:
+              type: object
+              properties:
+                ruleId:
+                  type: string
+                description:
+                  type: string
+                severity:
+                  type: string
+                  enum: [critical, high, medium, low]
+          explanation:
+            type: string
+            description: 决策解释（可审计）
+  implementation:
+    runtime: python
+    image: registry.example.com/aip/skills/aml-detection:1.0.0
+    entrypoint: aml_detection:detect
+    requires:
+      models:
+        - alias: reasoner
+          versionConstraint: ">=2024.01"
+      dataSources:
+        - ref: data://finance-dept/finance-regulations-kb
+  governance:
+    classification: secret
+    pii:
+      onInput: detect_and_mask
+      onOutput: detect_and_block
+      patternsRef: ref://patterns/finance-pii
+  cost:
+    budget: ref://budget/finance-dept-monthly
+  slo:
+    p95LatencyMs: 3000
+    successRate: 0.99
+  evaluation:
+    evalSet: ref://eval/aml-detection-v1
+    schedule: "0 3 * * 1"
+    gates:
+      promoteToStable:
+        minScore: 0.90
+        metrics:
+          - precision
+          - recall
+          - f1

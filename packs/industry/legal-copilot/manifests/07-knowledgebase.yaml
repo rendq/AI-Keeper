@@ -1,0 +1,32 @@
+apiVersion: data.ai-keeper.io/v1alpha1
+kind: KnowledgeBase
+metadata:
+  name: legal-kb
+  namespace: legal-dept
+spec:
+  displayName: Legal Knowledge Base
+  sources:
+    - ref: data://legal-dept/legal-kb-source
+      sync:
+        schedule: "0 */6 * * *"
+  pipeline:
+    chunking:
+      strategy: semantic
+      maxTokens: 512
+      overlap: 64
+    embedding:
+      ref: model://text-embedding-3-large
+      dimensions: 1536
+    enrichment:
+      - pii_tagging
+      - classification_inheritance
+      - entity_extraction
+  retrieval:
+    topK: 10
+    reranker:
+      enabled: true
+      model: ref://model/reranker-v1
+  acl:
+    mode: pre_filter
+    enforcement: pre_filter
+  classification: confidential

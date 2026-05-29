@@ -1,0 +1,22 @@
+# Sub-chart: audit-storage
+# ClickHouse 24.x + MinIO (S3 WORM) for AuditEvent persistence.
+#
+# - ClickHouse: `aip.audit_events` table (OrderBy tenant_id, occurred_at + TTL 2y)
+# - MinIO: Object Lock Compliance Mode (365d retention) for tamper-proof storage
+#
+# Requirements: B12.1, B12.6, F5
+apiVersion: v2
+name: audit-storage
+description: ClickHouse 24.x + MinIO (S3 WORM) for AuditEvent persistence
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.28.0-0"
+keywords:
+  - aip
+  - audit-storage
+  - clickhouse
+  - minio
+  - worm
+maintainers:
+  - name: The AIP Authors

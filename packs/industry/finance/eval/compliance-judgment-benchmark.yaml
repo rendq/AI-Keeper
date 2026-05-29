@@ -1,0 +1,68 @@
+apiVersion: eval.ai-keeper.io/v1alpha1
+kind: EvalSet
+metadata:
+  name: compliance-judgment-benchmark
+  namespace: finance-dept
+spec:
+  displayName: 合规判断 Benchmark
+  description: |
+    评估模型在金融合规判断场景下的准确性，包括：
+    - 合规/违规二分类判断
+    - 违规严重等级判定
+    - 适用法规条款识别
+    - 整改建议质量
+  version: "1.0.0"
+  metrics:
+    - name: precision
+      description: 合规判断精确率（避免误报）
+      threshold: 0.90
+    - name: recall
+      description: 合规判断召回率（避免漏报）
+      threshold: 0.85
+    - name: f1
+      description: F1 综合评分
+      threshold: 0.87
+    - name: regulation_accuracy
+      description: 适用法规识别准确率
+      threshold: 0.80
+  samples:
+    - id: cj-001
+      input:
+        documentId: sample-doc-001
+        scenario: "某基金公司在未获得投资者书面同意的情况下，将客户资金投入高风险衍生品"
+        reviewType: regulatory
+      expected:
+        decision: violation
+        severity: high
+        regulations:
+          - 证券投资基金法第七十三条
+          - 基金管理公司投资管理人员管理指导意见
+        recommendation: "立即停止未授权投资行为，恢复原有资产配置，向投资者披露并取得追认"
+      tags: [fund, unauthorized-trading]
+    - id: cj-002
+      input:
+        documentId: sample-doc-002
+        scenario: "银行在向客户推介理财产品时，未进行风险承受能力评估"
+        reviewType: regulatory
+      expected:
+        decision: violation
+        severity: medium
+        regulations:
+          - 商业银行理财业务监督管理办法第二十六条
+        recommendation: "补充完成投资者适当性评估，建立产品与客户风险等级匹配机制"
+      tags: [banking, suitability]
+    - id: cj-003
+      input:
+        documentId: sample-doc-003
+        scenario: "上市公司在年报中按时披露了关联交易信息，交易价格参照市场公允价格"
+        reviewType: regulatory
+      expected:
+        decision: compliant
+        severity: null
+        regulations:
+          - 上市公司信息披露管理办法
+        recommendation: null
+      tags: [securities, disclosure, compliant]
+  schedule:
+    cron: "0 3 * * 1"
+    retainResults: 30

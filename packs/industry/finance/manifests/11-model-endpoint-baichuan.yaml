@@ -1,0 +1,38 @@
+apiVersion: model.ai-keeper.io/v1alpha1
+kind: ModelEndpoint
+metadata:
+  name: baichuan-private
+  namespace: finance-dept
+spec:
+  displayName: 百川私有化部署 (Baichuan4-Finance)
+  provider: baichuan
+  model: Baichuan4-Finance
+  endpoint: https://baichuan-private.internal:8443/v1
+  region: cn-beijing
+  secretRef: ref://secret/baichuan-private-key
+  compliance:
+    standards:
+      - DJCP-L3
+    dataResidency: cn-beijing
+    privacy:
+      dpaSigned: true
+      dataRetention: none
+      onPremise: true
+  cost:
+    input: 0.00
+    output: 0.00
+    cached: 0.00
+    currency: CNY
+    unit: per_million_tokens
+  limits:
+    tpm: 300000
+    rpm: 2000
+  health:
+    probeInterval: 15s
+    timeout: 5s
+  deployment:
+    type: private
+    infrastructure:
+      gpu: A100-80G
+      replicas: 4
+      framework: vllm

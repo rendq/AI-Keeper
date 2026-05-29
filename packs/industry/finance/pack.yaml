@@ -1,0 +1,58 @@
+apiVersion: pack.ai-keeper.io/v1alpha1
+kind: Pack
+metadata:
+  name: industry/finance
+spec:
+  version: "1.0.0"
+  displayName: 金融行业 AI 平台 Pack
+  description: |
+    面向金融行业的 AIP 行业包，包含合规审查、投研助手、反洗钱检测、尽调摘要等核心技能，
+    配套等保三级强制策略、投研人审、数据分级等合规策略，以及国产大模型私有化部署配置。
+  category: industry
+  industry: finance
+  maintainer: aip-team@example.com
+  license: Apache-2.0
+  keywords:
+    - finance
+    - compliance
+    - aml
+    - investment-research
+    - due-diligence
+  requires:
+    - name: core/base
+      version: ">=1.0.0"
+    - name: core/policy-engine
+      version: ">=1.0.0"
+  valuesSchema:
+    type: object
+    properties:
+      tenant:
+        type: object
+        properties:
+          name:
+            type: string
+            default: finance-dept
+          adminEmail:
+            type: string
+      model:
+        type: object
+        properties:
+          tongyiEndpoint:
+            type: string
+            default: https://dashscope.aliyuncs.com/compatible-mode/v1
+          baichuanEndpoint:
+            type: string
+            default: https://baichuan-private.internal:8443/v1
+      compliance:
+        type: object
+        properties:
+          djsanjiEnabled:
+            type: boolean
+            default: true
+          dataResidency:
+            type: array
+            items:
+              type: string
+            default:
+              - cn-shanghai
+              - cn-beijing
