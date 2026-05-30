@@ -24,6 +24,8 @@ dev = [
   "hypothesis>=6.100.0",
   "yamllint>=1.35.0",
   "pre-commit>=3.7.0",
+  "jsonschema>=4.21.0",
+  "grpcio>=1.60.0",
 ]
 runtime = [
   # Filled in by task 8.x (Agent Runtime) — kept empty here so `uv sync` stays light.
@@ -43,6 +45,8 @@ dev-dependencies = [
   "hypothesis>=6.100.0",
   "yamllint>=1.35.0",
   "pre-commit>=3.7.0",
+  "jsonschema>=4.21.0",
+  "grpcio>=1.60.0",
 ]
 
 [tool.uv.workspace]
@@ -85,6 +89,10 @@ strict = true
 warn_unused_ignores = true
 
 [tool.pytest.ini_options]
-addopts = "-q --strict-markers"
+addopts = "-q --strict-markers --ignore=test/e2e --import-mode=importlib"
 asyncio_mode = "auto"
-pythonpath = ["."]
+pythonpath = [".", "dataplane/runtime", "dataplane/eval"]
+markers = [
+  "e2e: end-to-end tests (require cluster)",
+  "timeout: test timeout",
+]
