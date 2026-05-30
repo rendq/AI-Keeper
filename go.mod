@@ -2,6 +2,8 @@ module github.com/ai-keeper/ai-keeper
 
 go 1.24.0
 
+toolchain go1.24.0
+
 require (
 	github.com/emmansun/gmsm v0.43.0
 	github.com/go-logr/logr v1.4.2
