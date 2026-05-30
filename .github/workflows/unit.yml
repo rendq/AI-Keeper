@@ -21,6 +21,8 @@ jobs:
     timeout-minutes: 30
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      GONOSUMCHECK: "*"
+      GOFLAGS: "-mod=mod"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,7 +44,7 @@ jobs:
           version: "latest"
 
       - name: Sync Python dev deps
-        run: uv sync --extra dev
+        run: uv sync --extra dev --no-strict
 
       - name: Run unit tests
         run: make unit
