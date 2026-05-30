@@ -44,7 +44,7 @@ jobs:
           version: "latest"
 
       - name: Sync Python dev deps
-        run: uv sync --extra dev --no-strict
+        run: uv sync --extra dev
 
       - name: Run unit tests
         run: make unit
