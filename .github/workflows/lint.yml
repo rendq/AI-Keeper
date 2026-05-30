@@ -19,6 +19,8 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,42 +28,32 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: "1.24"
           cache: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v4
         with:
-          version: "0.4.18"
+          version: "latest"
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: "9.12.0"
+          version: "9"
           run_install: false
-
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/share/pnpm/store
-          key: pnpm-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: pnpm-
 
       - name: Bootstrap dev tooling
         run: |
-          # bootstrap-go fetches gofumpt + controller-gen + kustomize.
-          # bootstrap-k8s fetches kubeconform + helm.
-          # bootstrap-python / bootstrap-node sync uv + pnpm dependencies.
           make bootstrap-go bootstrap-k8s bootstrap-python bootstrap-node
 
       - name: Lint
