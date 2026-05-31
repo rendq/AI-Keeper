@@ -25,72 +25,93 @@ You declare what you want (YAML), AI-Keeper makes it happen — with built-in id
 
 ## Architecture
 
+AI-Keeper is organized as three layers — an Experience layer, a Kubernetes-native Control Plane, and a Data Plane — backed by a dedicated storage tier.
+
 ```mermaid
 graph TD
-    %% User Layer
-    User["👤 User / Client<br/>Console UI · aikctl · SDK"]
+    subgraph EXP["🖥️ Experience Layer"]
+        direction LR
+        Console["Console UI<br/>React"]
+        CLI["aikctl<br/>Go · Cobra"]
+        SDK["SDK<br/>Go / Py / TS"]
+    end
 
-    %% Gateway
-    User --> Gateway["🚪 Gateway<br/>AuthN · Rate Limit · Route"]
+    subgraph CP["⚙️ Control Plane (Go · Kubernetes Operator)"]
+        direction LR
+        API["K8s API Server<br/>13 CRDs · Webhooks · RBAC"]
+        REC["Reconcilers<br/>Tenant · Agent · Skill · Tool<br/>Policy · Budget · Quota · Model<br/>Router · KB · ServiceAccount"]
+        ENG["Internal Engines<br/>Policy Compiler · Cedar<br/>Conflict Detector · Federation · Rollout"]
+    end
 
-    %% Security Layer
-    Gateway --> Identity["🔑 Identity<br/>OBO Token Exchange<br/>RFC 8693"]
-    Gateway --> PEP["🛡️ PEP / PDP<br/>OPA · Cedar · ABAC<br/>Fail-Closed"]
-    Gateway --> DLP["🔒 DLP<br/>Detect · Mask<br/>Block · Classify"]
+    subgraph DP["🔀 Data Plane"]
+        direction LR
+        SEC["Security Pipeline<br/>Gateway → Identity (OBO)<br/>→ PEP/PDP → DLP<br/>fail-closed"]
+        EXE["Execution Layer<br/>Agent Runtime (Py)<br/>Model Router · Tools · KnowledgeBase"]
+        GOV["Governance Layer<br/>Guardrails (11) · Audit Sink (SHA-256)<br/>Cost Tracker · Approval (HITL)"]
+    end
 
-    %% Agent Runtime
-    Identity --> Runtime["🤖 Agent Runtime<br/>Skill Execution · Tool Invocation · Memory"]
-    PEP --> Runtime
-    DLP --> Runtime
+    subgraph ST["🗄️ Storage Layer"]
+        direction LR
+        PG["PostgreSQL<br/>(state)"]
+        Redis["Redis<br/>(cache)"]
+        NATS["NATS JetStream<br/>(events)"]
+        CH["ClickHouse<br/>(audit)"]
+        MinIO["MinIO<br/>(WORM)"]
+    end
 
-    %% Runtime Sub-components
-    Runtime --> Guardrails["⚠️ Guardrails<br/>11 Rules<br/>Input / Output / Behavior"]
-    Runtime --> Router["🔀 Model Router<br/>CEL · Semantic Cache<br/>Fallback Chains"]
-    Runtime --> Tools["🔧 Tools<br/>gRPC / HTTP"]
-    Runtime --> KB["📚 KnowledgeBase<br/>RAG · Vector<br/>Embedding"]
-    Runtime --> Channels["💬 Channels<br/>Feishu · Slack<br/>DingTalk"]
-
-    %% Governance Layer
-    Runtime --> Governance["📊 Governance Layer"]
-    Governance --> Budget["💰 Budget<br/>Hard Cap"]
-    Governance --> Quota["📏 Quota<br/>Per-Kind"]
-    Governance --> Audit["📝 Audit<br/>Immutable"]
-    Governance --> Cost["🧮 Cost<br/>Per-Call"]
-
-    %% Control Plane
-    Governance --> CP["⚙️ Control Plane<br/>K8s API · 13 CRDs · Webhooks<br/>Reconcilers · Policy Compiler<br/>Federation · Rollout"]
-
-    %% Storage
-    CP --> Storage["🗄️ Storage Layer"]
-    Storage --> PG["PostgreSQL<br/>(state)"]
-    Storage --> Redis["Redis<br/>(cache)"]
-    Storage --> NATS["NATS JetStream<br/>(events)"]
-    Storage --> CH["ClickHouse<br/>(audit)"]
-    Storage --> MinIO["MinIO<br/>(WORM)"]
+    EXP --> CP
+    CP --> DP
+    DP --> ST
 ```
 
-### Request Flow
+### Request Flow (Fail-Closed Pipeline)
+
+Every AI call traverses the full governance pipeline. Any component failure results in **deny** (fail-closed).
 
 ```mermaid
 graph LR
-    A[Client] --> B[Gateway]
-    B --> C[Identity/OBO]
-    C --> D[PEP]
-    D --> E{PDP<br/>allow?}
-    E -->|deny| Z[❌ Reject]
-    E -->|allow| F[DLP scan input]
-    F --> G[Agent Runtime]
-    G --> H[Guardrails input]
-    H --> I[Model Router]
-    I --> J[LLM]
-    J --> K[Guardrails output]
-    K --> L[DLP scan output]
-    L --> M[Audit Sink]
-    M --> N[Cost Tracker]
-    N --> O[✅ Response]
+    A[Client] --> B[Gateway<br/>AuthN · Rate Limit]
+    B --> C[Identity<br/>OBO · RFC 8693]
+    C --> D{PEP / PDP<br/>OPA + Cedar<br/>allow?}
+    D -->|deny| Z[❌ DENY]
+    D -->|allow| E[DLP<br/>Detect · Mask · Block]
+    E --> F[Guardrails<br/>11 Rules · 3 Stages]
+    F --> G[Model Router<br/>CEL · Cache · Fallback]
+    G --> H[LLM]
+    H --> I[Guardrails output]
+    I --> J[DLP output scan]
+    J --> K[Audit Sink<br/>SHA-256 → ClickHouse + S3 WORM]
+    K --> L[Cost Tracker<br/>Budget Cap · Quota]
+    L --> M[✅ Response]
 ```
 
-Every AI call passes through the full governance pipeline. Any component failure results in **deny** (fail-closed).
+### Reconcile Loop (Declarative Convergence)
+
+You write YAML; controllers continuously converge the actual state to your declared intent.
+
+```mermaid
+graph LR
+    U[User<br/>kubectl apply -f] --> W[Admission Webhook<br/>validate · check refs]
+    W --> E[etcd]
+    E -->|watch| R["Reconciler<br/>1. fetch desired (spec)<br/>2. compare actual<br/>3. converge<br/>4. update status"]
+    R --> S[Status Conditions<br/>Compiled · Distributed · Ready]
+    R --> X[Side Effects<br/>push bundle · deploy agent]
+    R -.->|requeue · drift check every 5m| R
+```
+
+### Immutable Audit (Dual-Write Guarantee)
+
+```mermaid
+graph LR
+    A[AI Call] --> B["AuditEvent<br/>eventHash = SHA-256<br/>(RFC 8785 canonical JSON)"]
+    B --> C[NATS JetStream<br/>durable · replay]
+    C --> D[ClickHouse<br/>append-only · queryable]
+    C --> E[MinIO S3 WORM<br/>Object Lock · retention]
+    D --> F{Both succeed?}
+    E --> F
+    F -->|yes| G[ACK to NATS]
+    F -->|no| H[❌ retry / fail-closed]
+```
 
 ### Tech Stack
 
