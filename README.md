@@ -27,91 +27,37 @@ You declare what you want (YAML), AI-Keeper makes it happen — with built-in id
 
 AI-Keeper is organized as three layers — an Experience layer, a Kubernetes-native Control Plane, and a Data Plane — backed by a dedicated storage tier.
 
-```mermaid
-graph TD
-    subgraph EXP["🖥️ Experience Layer"]
-        direction LR
-        Console["Console UI<br/>React"]
-        CLI["aikctl<br/>Go · Cobra"]
-        SDK["SDK<br/>Go / Py / TS"]
-    end
-
-    subgraph CP["⚙️ Control Plane (Go · Kubernetes Operator)"]
-        direction LR
-        API["K8s API Server<br/>13 CRDs · Webhooks · RBAC"]
-        REC["Reconcilers<br/>Tenant · Agent · Skill · Tool<br/>Policy · Budget · Quota · Model<br/>Router · KB · ServiceAccount"]
-        ENG["Internal Engines<br/>Policy Compiler · Cedar<br/>Conflict Detector · Federation · Rollout"]
-    end
-
-    subgraph DP["🔀 Data Plane"]
-        direction LR
-        SEC["Security Pipeline<br/>Gateway → Identity (OBO)<br/>→ PEP/PDP → DLP<br/>fail-closed"]
-        EXE["Execution Layer<br/>Agent Runtime (Py)<br/>Model Router · Tools · KnowledgeBase"]
-        GOV["Governance Layer<br/>Guardrails (11) · Audit Sink (SHA-256)<br/>Cost Tracker · Approval (HITL)"]
-    end
-
-    subgraph ST["🗄️ Storage Layer"]
-        direction LR
-        PG["PostgreSQL<br/>(state)"]
-        Redis["Redis<br/>(cache)"]
-        NATS["NATS JetStream<br/>(events)"]
-        CH["ClickHouse<br/>(audit)"]
-        MinIO["MinIO<br/>(WORM)"]
-    end
-
-    EXP --> CP
-    CP --> DP
-    DP --> ST
-```
+![Three-Layer Architecture](docs/images/fig2-architecture.png)
 
 ### Request Flow (Fail-Closed Pipeline)
 
 Every AI call traverses the full governance pipeline. Any component failure results in **deny** (fail-closed).
 
-```mermaid
-graph LR
-    A[Client] --> B[Gateway<br/>AuthN · Rate Limit]
-    B --> C[Identity<br/>OBO · RFC 8693]
-    C --> D{PEP / PDP<br/>OPA + Cedar<br/>allow?}
-    D -->|deny| Z[❌ DENY]
-    D -->|allow| E[DLP<br/>Detect · Mask · Block]
-    E --> F[Guardrails<br/>11 Rules · 3 Stages]
-    F --> G[Model Router<br/>CEL · Cache · Fallback]
-    G --> H[LLM]
-    H --> I[Guardrails output]
-    I --> J[DLP output scan]
-    J --> K[Audit Sink<br/>SHA-256 → ClickHouse + S3 WORM]
-    K --> L[Cost Tracker<br/>Budget Cap · Quota]
-    L --> M[✅ Response]
-```
+![Request Pipeline (Fail-Closed)](docs/images/fig1-request-pipeline.png)
 
 ### Reconcile Loop (Declarative Convergence)
 
 You write YAML; controllers continuously converge the actual state to your declared intent.
 
-```mermaid
-graph LR
-    U[User<br/>kubectl apply -f] --> W[Admission Webhook<br/>validate · check refs]
-    W --> E[etcd]
-    E -->|watch| R["Reconciler<br/>1. fetch desired (spec)<br/>2. compare actual<br/>3. converge<br/>4. update status"]
-    R --> S[Status Conditions<br/>Compiled · Distributed · Ready]
-    R --> X[Side Effects<br/>push bundle · deploy agent]
-    R -.->|requeue · drift check every 5m| R
-```
+![Reconcile Loop](docs/images/fig3-reconcile-loop.png)
 
 ### Immutable Audit (Dual-Write Guarantee)
 
-```mermaid
-graph LR
-    A[AI Call] --> B["AuditEvent<br/>eventHash = SHA-256<br/>(RFC 8785 canonical JSON)"]
-    B --> C[NATS JetStream<br/>durable · replay]
-    C --> D[ClickHouse<br/>append-only · queryable]
-    C --> E[MinIO S3 WORM<br/>Object Lock · retention]
-    D --> F{Both succeed?}
-    E --> F
-    F -->|yes| G[ACK to NATS]
-    F -->|no| H[❌ retry / fail-closed]
-```
+Every AI call produces an immutable AuditEvent, dual-written to ClickHouse and S3 WORM so no event is ever lost.
+
+![Immutable Audit Trail](docs/images/fig4-audit.png)
+
+### Policy Engine (OPA + Cedar)
+
+A dual policy engine with conflict detection and drift auto-repair.
+
+![Policy Engine — OPA + Cedar](docs/images/fig5-policy-engine.png)
+
+### Cost Control (Budget Enforcement)
+
+Progressive budget enforcement: notify at 50%, throttle at 80%, hard-block at 100%.
+
+![Cost Control — Budget Enforcement](docs/images/fig6-cost-control.png)
 
 ### Tech Stack
 
